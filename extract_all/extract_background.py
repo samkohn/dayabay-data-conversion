@@ -1,12 +1,8 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
 # In[1]:
 
-###############################3######
-# Peter Sadowski 2015
-# Make supervised learning dataset
-####################################333
 
 import os
 import sys
@@ -24,11 +20,16 @@ import time
 import argparse
 import itertools
 import pandas
-
+#from mpi4py import MPI
 
 # In[ ]:
 
-taskfarmer_id = int(sys.argv[1])
+mpi_rank = int(sys.argv[1]) #if len(sys.argv) > 2 else  MPI.COMM_WORLD.Get_rank()
+nproc = 2500 #int(sys.argv[2]) if len(sys.argv) > 2 else  MPI.COMM_WORLD.Get_size()
+
+#offset = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+file_start_idx = mpi_rank  #+ offset
+#file_idx = int(sys.argv[1])
 
 
 # In[2]:
@@ -112,96 +113,104 @@ def get_file_no(file_string):
 
 
 #with open("./FileList-6Oct-Official-1") as f:
-#with open("/global/homes/r/racah/projects/dayabay-data-conversion/extract_all/FileList-14Mar-Recovered-1-2", "r") as f:
 with open("/global/homes/r/racah/projects/dayabay-data-conversion/extract_all/Unprocessed_FileList-22Mar-1-2", "r") as f:
    content = [x.strip('\n') for x in f.readlines()]
 
-
+end = len(content)
 # In[67]:
 
-rootfile = content[taskfarmer_id]
-run_no = get_run_no(rootfile)
-file_no = get_file_no(rootfile)
-eh = int(get_eh(rootfile)[2:])
+for file_idx in range(file_start_idx,end,nproc):
+	print file_idx
+	rootfile = content[file_idx]
+	h5_filename = 'recon.' + rootfile.split('.root')[0].split('recon.')[1] + '.h5'
+        path = '/project/projectdirs/paralleldb/spark/benchmarks/nmf/daya-data'
+	full_path = os.path.join(path, h5_filename)
+	print full_path
+	if os.path.exists(full_path):
+		print "Whoa: %s already exists. Skipping.." % full_path
+		continue
+	run_no = get_run_no(rootfile)
+	file_no = get_file_no(rootfile)
+	eh = int(get_eh(rootfile)[2:])
 
 
-# In[112]:
+	# In[112]:
 
-index=0
-stat_entries = roottools.get_num_stat_entries(rootfile)
-calib_entries =roottools.get_num_readout_entries(rootfile)
-entries = {}
-t1 = time.time()
+	index=0
+	stat_entries = roottools.get_num_stat_entries(rootfile)
+	calib_entries =roottools.get_num_readout_entries(rootfile)
+	entries = {}
+	t1 = time.time()
 
-#these two for loops will be slow
-# make a hash table mapping triggerNumber to charge, time info entry
-for entry1 in roottools.calibReadoutIter(rootfile):
-    if entry1['detector']  in [0,1,2,3,4]:
-        entries[entry1['triggerNumber']] = entry1
-t2 = time.time()
-print "it took %d seconds for %i events. Thats %i events per second" % (t2-t1, calib_entries, calib_entries / (t2-t1))
+	#these two for loops will be slow
+	# make a hash table mapping triggerNumber to charge, time info entry
+	for entry1 in roottools.calibReadoutIter(rootfile):
+	    if entry1['detector']  in [0,1,2,3,4]:
+		entries[entry1['triggerNumber']] = entry1
+	t2 = time.time()
+	print "it took %d seconds for %i events. Thats %i events per second" % (t2-t1, calib_entries, calib_entries / (t2-t1))
 
-t1 = time.time()
-#if a flasher stat entry has the same triggerNumber as a readout entry, merge them
-for entry2 in roottools.calibStatsIter(rootfile):
-    if entry2['triggerNumber'] in entries:
-        entries[entry2['triggerNumber']].update(entry2)
-t2 = time.time()
-print "it took %d seconds for %i events. Thats %i events per second" % (t2-t1, stat_entries, stat_entries / (t2-t1))
-#now go thru and so normal parsing (this should be quick)
-
-
-# In[109]:
-
-num_entries = len(entries)
-dataset_keys = ['class', 'charge', 'time', 'trig_no', 'detector_no']
-data = {}
-for k in dataset_keys:
-    if k == 'charge' or k=='time':
-        data[k] = np.zeros((num_entries,NFEATURES), dtype="float64") #h5py file here?
-    else:
-        data[k] = np.zeros((num_entries,1), dtype='int32')
-data['run_no'] = run_no * np.ones((num_entries,1), dtype='int32')
-data['file_no'] = file_no * np.ones((num_entries,1), dtype='int32')
-data['eh'] = eh * np.ones((num_entries,1), dtype='int32')
+	t1 = time.time()
+	#if a flasher stat entry has the same triggerNumber as a readout entry, merge them
+	for entry2 in roottools.calibStatsIter(rootfile):
+	    if entry2['triggerNumber'] in entries:
+		entries[entry2['triggerNumber']].update(entry2)
+	t2 = time.time()
+	print "it took %d seconds for %i events. Thats %i events per second" % (t2-t1, stat_entries, stat_entries / (t2-t1))
+	#now go thru and so normal parsing (this should be quick)
 
 
-# In[113]:
+	# In[109]:
 
-index=0
-for entry in entries.values():
-#     if entry['detector'] not in [0,1,2,3]:
-#         continue # Not AD detector 
-    d ={}
-    d['charge'],d['time'] = roottools.getChargesTime(entry, preprocess_flag=False, dtype='float64')
-    if index % 1000 == 0:
-        print "%i of %i entries" % (index, len(entries))
-    #flatten the 8,24 arrays
-    for k in ['charge', 'time']:
-        d[k] = d[k].flatten()
-    d['trig_no'] = entry['triggerNumber']
-    d['detector_no'] = entry['detector']
-    d['class'] = get_class(entry,file_no, run_no)
-    for k,v in d.iteritems():
-        data[k][index] = v
-    index += 1
- 
+	num_entries = len(entries)
+	dataset_keys = ['class', 'charge', 'time', 'trig_no', 'detector_no']
+	data = {}
+	for k in dataset_keys:
+	    if k == 'charge' or k=='time':
+		data[k] = np.zeros((num_entries,NFEATURES), dtype="float64") #h5py file here?
+	    else:
+		data[k] = np.zeros((num_entries,1), dtype='int32')
+	data['run_no'] = run_no * np.ones((num_entries,1), dtype='int32')
+	data['file_no'] = file_no * np.ones((num_entries,1), dtype='int32')
+	data['eh'] = eh * np.ones((num_entries,1), dtype='int32')
 
 
-# In[115]:
+	# In[113]:
 
-h5_filename = 'recon.' + rootfile.split('.root')[0].split('recon.')[1] + '.h5'
-print h5_filename
-path = '/project/projectdirs/paralleldb/spark/benchmarks/nmf/daya-data'#  if len(sys.argv) < 3 else sys.argv[2]
-h5_path = os.path.join(path, h5_filename)
-print h5_path
+	index=0
+	for entry in entries.values():
+	#     if entry['detector'] not in [0,1,2,3]:
+	#         continue # Not AD detector 
+	    d ={}
+	    d['charge'],d['time'] = roottools.getChargesTime(entry, preprocess_flag=False, dtype='float64')
+	    if index % 1000 == 0:
+		print "%i of %i entries" % (index, len(entries))
+	    #flatten the 8,24 arrays
+	    for k in ['charge', 'time']:
+		d[k] = d[k].flatten()
+	    d['trig_no'] = entry['triggerNumber']
+	    d['detector_no'] = entry['detector']
+	    d['class'] = get_class(entry,file_no, run_no)
+	    for k,v in d.iteritems():
+		data[k][index] = v
+	    index += 1
+	 
 
 
-# In[116]:
+	# In[115]:
 
-h5f = h5py.File(h5_path, 'w')
-for k,v in data.iteritems():
-     h5f.create_dataset(k,data=v[:index]) # this is importatn to get rid of zero rows
-h5f.close()
-os.chown(h5_path,61228,70018) #changes file to be owned by racah and in group dasrepo
+	#h5_filename = 'recon.' + rootfile.split('.root')[0].split('recon.')[1] + '.h5'
+	#print h5_filename
+	#path = '/project/projectdirs/paralleldb/spark/benchmarks/nmf/daya-data'#  if len(sys.argv) < 3 else sys.argv[2]
+	h5_path = full_path #os.path.join(path, h5_filename)
+	print h5_path
+
+
+	# In[116]:
+
+	h5f = h5py.File(h5_path, 'w')
+	for k,v in data.iteritems():
+	     h5f.create_dataset(k,data=v[:index]) # this is importatn to get rid of zero rows
+	h5f.close()
+	os.chown(h5_path,61228,70018) #changes file to be owned by racah and in group dasrepo
 
