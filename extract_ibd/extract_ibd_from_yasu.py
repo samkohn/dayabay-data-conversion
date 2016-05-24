@@ -1,6 +1,6 @@
 ###############################3######
-# Peter Sadowski 2015
-# Extract AD candidates
+# Sam Kohn 2016
+# Extract IBD candidates
 ####################################333
 
 import os
@@ -22,15 +22,47 @@ NFEATURES = 11 + 4*192
 
 def main():
     
-    filename = '/global/homes/p/pjsadows/data/dayabay/ibd_candidates_eh1.txt' # Files containing list of AD candidates.
-    X = pandas.read_csv(filename, delimiter='\t')
-    fdict = pkl.load(open('fdict_wahid_v2.pkl', 'r')) # Contains map from (run, filenum) to full filepath.
+    filelistname = 'yasufiles.txt' # ROOT files containing IBD candidates
+    treename = 'tr_ibd'
+    filelist = pandas.read_csv(filelistname, squeeze=True, header=None)
     Nstart = int( sys.argv[1]) 
     N = 10000 if len(sys.argv)== 2 else int(sys.argv[2])  # 10k events per file 
     start = Nstart * N
     stop = start + N 
     outfile = 'ibd_v4_time_%d.h5' % start
     data = np.zeros((N, NFEATURES), dtype='f4')
+    # find starting value
+    current_index = 0
+    for i, filename in enumerate(filelist):
+        roottree = roottools.RootTree(filename, treename)
+        numentries = roottree.numEntries()
+        if current_index + numentries >= start:
+            startfile = filename
+            startfileindex = i
+            startentry = start - current_index
+            break
+        else:
+            current_index += numentries
+    # Go through the starting file
+    intbranches = ['runno', 'fileno', 'site', 'det', 'time_sec',
+        'time_nanosec', 'trigno_prompt', 'trigno_delayed',
+        'nHitsAD_prompt', 'nHitsAD_delayed']
+    floatbranches = ['dt_last_ad_muon', 'dt_last_ad_shower_muon',
+        'dt_last_wp_muon']
+    ivectorbranches = ['hitCountAD_prompt', 'ring_prompt', 'column_prompt',
+        'hitCountAD_delayed', 'ring_delayed', 'column_delayed']
+    fvectorbranches = ['timeAD_prompt', 'chargeAD_prompt', 'timeAD_delayed',
+        'chargeAD_delayed']
+    roottree = roottools.RootTree(startfile, treename, intbranches,
+        floatbranches, ivectorbranches, fvectorbranches)
+    current_index = start  # corresponds to range(startentry, ...)
+    for entrynum in range(startentry, roottree.numEntries()):
+        current_index += 1
+
+
+
+
+
     i = -1
     for j,trigger in X.iterrows():
         logging.debug('Start of loop')
