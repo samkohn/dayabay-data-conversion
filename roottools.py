@@ -27,7 +27,7 @@ class RootTree():
         [ ch.SetBranchStatus(branchname, 1) for branchname in branches ]
         for branchname in branches:
             branchDict[branchname] = ch.GetBranch(branchname)
-            branchDict[branchname].SetAddress(branchPointers[branchname])
+            ch.SetBranchAddress(branchname, branchPointers[branchname])
         #return ch, branchDict, branchPointers, branches
         self.filename = filename
         self.treename = treename
@@ -43,8 +43,7 @@ class RootTree():
 
     def loadentry(self, i):
         self.ch.LoadTree(i)
-        for branchname in self.branches:
-            self.branchDict[branchname].GetEntry(i)
+        self.ch.GetEntry(i)
         self.current = Entry(self, True)
         return self.current
      
