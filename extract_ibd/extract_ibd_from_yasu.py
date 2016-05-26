@@ -5,7 +5,6 @@
 
 import os
 import sys
-#import h5py
 from collections import defaultdict
 import roottools
 import array
@@ -16,9 +15,26 @@ import pandas
 import h5py
 import thread
 import logging
+__all__ = ['unflattenData']
 logging.basicConfig(level=logging.DEBUG)
 
-NFEATURES = 11 + 4*192
+METADATA_NAMES = (
+        'runno',
+        'fileno', 
+        'site',
+        'det',
+        'time_sec',
+        'time_nanosec',
+        'trigno_prompt',
+        'trigno_delayed',
+        'dt_last_ad_muon',
+        'dt_last_ad_shower_muon',
+        'dt_last_wp_muon'
+        )
+NPIXELS = 192
+NCHANNELS = 4
+NMETADATA = len(METADATA_NAMES)
+ENTRYSIZE = NMETADATA + NCHANNELS * NPIXELS
 
 def main():
     
@@ -29,20 +45,21 @@ def main():
     N = 10000 if len(sys.argv)== 2 else int(sys.argv[2])  # 10k events per file 
     start = Nstart * N
     stop = start + N 
-    outfile = 'ibd_v4_time_%d.h5' % start
-    data = np.zeros((N, NFEATURES), dtype='f4')
+    outfilename = 'ibd_yasu_%d_%d.h5' % (start, stop-1)
+    data = np.zeros((N, ENTRYSIZE), dtype='float32')
     # find starting value
-    current_index = 0
+    global_index = 0
     for i, filename in enumerate(filelist):
         roottree = roottools.RootTree(filename, treename)
         numentries = roottree.numEntries()
-        if current_index + numentries >= start:
+        if global_index + numentries >= start:
             startfile = filename
             startfileindex = i
-            startentry = start - current_index
+            # skip into the middle of the file to get to the correct entry
+            startentry = start - global_index
             break
         else:
-            current_index += numentries
+            global_index += numentries
     # Go through the starting file
     intbranches = ['runno', 'fileno', 'site', 'det', 'time_sec',
         'time_nanosec', 'trigno_prompt', 'trigno_delayed',
@@ -55,71 +72,100 @@ def main():
         'chargeAD_delayed']
     roottree = roottools.RootTree(startfile, treename, intbranches,
         floatbranches, ivectorbranches, fvectorbranches)
-    current_index = start  # corresponds to range(startentry, ...)
-    for entrynum in range(startentry, roottree.numEntries()):
-        current_index += 1
+    global_index = start  # refers to global index over all files
+    endentry = min(roottree.numEntries(), startentry+N)
+    for entrynum in range(startentry, endentry):
+        roottree.loadentry(entrynum)
+        event = roottree.current
+        data[global_index-start] = getFlattenedData(event)
+        global_index += 1
+    remainingEntries = stop - global_index
+    fileindex = startfileindex + 1
+    while remainingEntries > 0 and fileindex < len(filelist):
+        roottree = roottools.RootTree(filelist[startfileindex + 1],
+            treename, intbranches, floatbranches,
+            ivectorbranches, fvectorbranches)
+        startentry = 0
+        endentry = min(roottree.numEntries(), remainingEntries)
+        for entrynum in range(startentry, endentry):
+            roottree.loadentry(entrynum)
+            event = roottree.current
+            data[global_index-start] = getFlattenedData(event)
+            global_index += 1
+        remainingEntries = stop - global_index
+    outfile = h5py.File(outfilename, 'w')
+    # TODO determine if chunks/compression is necessary
+    outdset = outfile.create_dataset("ibd_pair_data", data=data)
+    # Set attributes so future generations can read this dataset
+    outdset.attrs['description'] = \
+"""This dataset contains pairs of IBD candidates (prompt, delayed) as
+selected by the physics selection criteria.
 
+See the 'structure' attribute for a detailed description of the dset layout.
 
+Each row in the dataset contains flattened versions of the charge and time on
+each PMT for both the prompt and delayed events, followed by some metadata.
+There are currently %d metadata items, which can be accessed as attributes from
+0 to %d. Reverse lookup is also implemented to get the index of a given piece
+of metadata.""" % (NMETADATA, NMETADATA)
+    outdset.attrs['structure'] = \
+"""Data set structure: N rows by %d columns. Each column has the following:
 
+0-%d: flattened 8x24 of prompt charge
+%d-%d: flattened 8x24 of prompt time
+%d-%d: flattened 8x24 of delayed charge
+%d-%d: flattened 8x24 of delayed time
+%d-%d: metadata such as trigger numbers, site and AD info, and dt between
+triggers and to the last muon.""" % (ENTRYSIZE, NPIXELS-1, NPIXELS,
+    2*NPIXELS-1, 2*NPIXELS, 3*NPIXELS-1, 3*NPIXELS, 4*NPIXELS-1, 4*NPIXELS,
+    ENTRYSIZE-1)
 
+    # Set metadata attributes so people know what's in the last bit of each row
+    for i, name in enumerate(METADATA_NAMES):
+        outdset.attrs[str(i)] = name
+        outdset.attrs[name] = i
 
-    i = -1
-    for j,trigger in X.iterrows():
-        logging.debug('Start of loop')
-        if (trigger['RunNo'], trigger['FileNo']) not in fdict:
-            logging.info('Could not find run %d file %d',trigger['RunNo'], trigger['FileNo'])
-            continue
-        fn = fdict[(trigger['RunNo'], trigger['FileNo'])]
-        if not os.access(fn, os.R_OK):
-            logging.info('Could not read file %s', fn)
-            continue
-        i += 1
-        if i < start:
-            continue
-        if i >= stop:
-            break # Early
-        try:
-            logging.debug(fn)
-            rval = extract_candidate(fn, [trigger['Detector']+1, trigger['Detector']+1], [trigger['trigno_prompt'], trigger['trigno_delayed']])
-        except:
-            logging.error('Error: Could not load trees from %s', fn)
-            i -= 1
-            continue
-        data1, data2 = rval[0], rval[1]
-        data[i - start, :] = np.hstack((trigger.values.reshape((1,-1)), data1, data2))
-    if False:
-        pkl.dump(data, outfile)     
-    else:
-        f = h5py.File(outfile, "w")
-        dset = f.create_dataset("charges", (N, 4*192), dtype='float32')
-        dset2 = f.create_dataset("info", (N, 11), dtype='float32')
-        dset[0:N, ...] = data[:, 11:]
-        dset2[0:N, ...] = data[:, :11]
-        f.close()
+    outfile.close()
+    return
 
-def extract_candidate(filename, detectors, triggerNumbers):   
- 
-    treename = '/Event/CalibReadout/CalibReadoutHeader'
-    intbranches = ['nHitsAD','triggerNumber', 'detector']
-    floatbranches = []
-    ivectorbranches = ["ring","column","wallNumber"]
-    fvectorbranches = ["timeAD","chargeAD", "timePool", "chargePool", "wallSpot"]
-    t1 = roottools.RootTree(filename, treename, intbranches=intbranches, floatbranches=floatbranches, ivectorbranches=ivectorbranches, fvectorbranches=fvectorbranches)
- 
-    startidx = 0
-    rval = []
-    for (detector, triggerNumber) in zip(detectors, triggerNumbers): 
-        logging.debug('desired trigger = %d', triggerNumber)
-        idx = t1.find_trigger(detector, triggerNumber, startidx)
-        assert idx is not None, filename
-        e1 = t1.loadentry(idx)
-        charge, time = roottools.getChargesTime(e1, preprocess_flag=True)
-        #isflasher = roottools.isflasher(e2)       
-        data = np.zeros((1,2*192), dtype='float32')
-        data[0, :] =  np.hstack((charge.flatten(),time.flatten()))
-        rval.append(data)
-        startidx = idx
-    return rval
+def getFlattenedData(event):
+    event['nHitsAD'] = event['nHitsAD_prompt']
+    event['chargeAD'] = event['chargeAD_prompt']
+    event['timeAD'] = event['timeAD_prompt']
+    event['ring'] = event['ring_prompt']
+    event['column'] = event['column_prompt']
+    charge2d_prompt, time2d_prompt = roottools.getChargesTime(event)
+    event['nHitsAD'] = event['nHitsAD_delayed']
+    event['chargeAD'] = event['chargeAD_delayed']
+    event['timeAD'] = event['timeAD_delayed']
+    event['ring'] = event['ring_delayed']
+    event['column'] = event['column_delayed']
+    charge2d_delayed, time2d_delayed = roottools.getChargesTime(event)
+    # Reshape everything into one long vector
+    flatteneds = [
+        # reshape(-1) produces a 1D array
+        charge2d_prompt.reshape(-1),
+        time2d_prompt.reshape(-1),
+        charge2d_delayed.reshape(-1),
+        time2d_delayed.reshape(-1),
+        np.array([event[name] for name in METADATA_NAMES])
+    ]
+    return np.hstack(flatteneds)
+
+def unflattenData(datavec):
+    """Expect a 779-length 1D numpy array or similar. Split it into four 8x24
+    images plus the metadata, and return a dict with the appropriate
+    attributes.
+    """
+    event = {}
+    shape = (8, 24)
+    event['charge_prompt'] = datavec[0:NPIXELS].reshape(shape)
+    event['time_prompt'] = datavec[NPIXELS:(2*NPIXELS)].reshape(shape)
+    event['charge_delayed'] = datavec[(2*NPIXELS):(3*NPIXELS)].reshape(shape)
+    event['time_delayed'] = datavec[(3*NPIXELS):(4*NPIXELS)].reshape(shape)
+    for i, name in enumerate(METADATA_NAMES):
+        event[name] = datavec[(4*NPIXELS+i)]
+    return event
 
 
 if __name__=='__main__':
