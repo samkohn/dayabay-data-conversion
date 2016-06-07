@@ -105,7 +105,8 @@ def main():
         fileindex += 1
     outfile = h5py.File(outfilename, 'w')
     # TODO determine if chunks/compression is necessary
-    outdset = outfile.create_dataset("ibd_pair_data", data=data)
+    outdset = outfile.create_dataset("ibd_pair_data", data=data,
+        compression="gzip", chunks=True)
     # Set attributes so future generations can read this dataset
     outdset.attrs['description'] = \
 """This dataset contains pairs of IBD candidates (prompt, delayed) as
