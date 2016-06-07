@@ -51,6 +51,8 @@ def main():
     global_index = 0
     startfile = None
     for i, filename in enumerate(filelist):
+        if not os.path.isfile(filename):
+            continue
         roottree = roottools.RootTree(filename, treename)
         numentries = roottree.numEntries()
         if global_index + numentries >= start:
@@ -86,7 +88,10 @@ def main():
     remainingEntries = stop - global_index
     fileindex = startfileindex + 1
     while remainingEntries > 0 and fileindex < len(filelist):
-        roottree = roottools.RootTree(filelist[startfileindex + 1],
+        if not os.path.isfile(filename):
+            fileindex += 1
+            continue
+        roottree = roottools.RootTree(filelist[fileindex],
             treename, intbranches, floatbranches,
             ivectorbranches, fvectorbranches)
         startentry = 0
@@ -97,6 +102,7 @@ def main():
             data[global_index-start] = getFlattenedData(event)
             global_index += 1
         remainingEntries = stop - global_index
+        fileindex += 1
     outfile = h5py.File(outfilename, 'w')
     # TODO determine if chunks/compression is necessary
     outdset = outfile.create_dataset("ibd_pair_data", data=data)
