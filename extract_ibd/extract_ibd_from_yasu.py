@@ -49,6 +49,7 @@ def main():
     data = np.zeros((N, ENTRYSIZE), dtype='float32')
     # find starting value
     global_index = 0
+    startfile = None
     for i, filename in enumerate(filelist):
         roottree = roottools.RootTree(filename, treename)
         numentries = roottree.numEntries()
@@ -60,6 +61,9 @@ def main():
             break
         else:
             global_index += numentries
+    if startfile is None:
+        logging.error("Could not reach %dth event", start)
+        return
     # Go through the starting file
     intbranches = ['runno', 'fileno', 'site', 'det', 'time_sec',
         'time_nanosec', 'trigno_prompt', 'trigno_delayed',
