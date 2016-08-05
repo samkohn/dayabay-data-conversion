@@ -1,4 +1,7 @@
 *.pyc
 *.h5
 *.dat
+test*
+*ibd*.txt
+batch*
 
