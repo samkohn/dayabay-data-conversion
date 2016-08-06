@@ -27,9 +27,9 @@ def passes_WS_muon_veto(readout_data, stats_data):
     dt_next_IWS = stats_data['dtNextIWS_ms']
     dt_next_OWS = stats_data['dtNextOWS_ms']
     return (dt_next_IWS > NEXT_DT and
-                dt_last_IWS > LAST_DT and
-                dt_next_OWS > NEXT_DT and
-                dt_last_OWS > LAST_DT)
+            dt_last_IWS > LAST_DT and
+            dt_next_OWS > NEXT_DT and
+            dt_last_OWS > LAST_DT)
 
 def passes_AD_muon_veto(readout_data, stats_data):
     """
@@ -38,7 +38,7 @@ def passes_AD_muon_veto(readout_data, stats_data):
     """
     DT_THRESHOLD = 1.4
     dt = stats_data['dtLast_ADMuon_ms']
-    return dt > DT_THRESHOLD or dt < 0
+    return dt > DT_THRESHOLD
 
 def passes_AD_shower_muon_veto(readout_data, stats_data):
     """
