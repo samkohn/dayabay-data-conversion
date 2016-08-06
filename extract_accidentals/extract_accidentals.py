@@ -45,7 +45,9 @@ def passes_AD_shower_muon_veto(readout_data, stats_data):
         Veto and return false if (0, 0.4) s after >3e5 pe signal.
 
     """
-    pass
+    DT_THRESHOLD = 400
+    dt = stats_data['dtLast_ADShower_ms']
+    return dt > DT_THRESHOLD
 
 def passes_flasher_veto(readout_data, stats_data):
     """
@@ -55,8 +57,18 @@ def passes_flasher_veto(readout_data, stats_data):
 
         (Q3/(Q2+Q4))**2 + (Qmax/(Qtot * 0.45))**2 > 1
 
+        (In the paper the criterion is that log10 of that quantity is
+        greater than 0, but this is the same and slightly cheaper.)
+
     """
-    pass
+    Q2 = stats_data['QuadrantQ2']
+    Q3 = stats_data['QuadrantQ3']
+    Q4 = stats_data['QuadrantQ4']
+    Qmax = stats_data['MaxQ']
+    Qtot = stats['NominalCharge']
+    SCALE = 0.45
+
+    return (Q3 / (Q2 + Q4))**2 + (Qmax / Qtot / SCALE)**2 < 1
 
 def passes_pre_multiplicity_veto(readout_data, stats_data):
     """
@@ -64,7 +76,7 @@ def passes_pre_multiplicity_veto(readout_data, stats_data):
         signal <400 us before this signal.
 
     """
-    pass
+    return True
 
 def passes_post_multiplicity_veto(readout_data, stats_data):
     """
@@ -72,21 +84,27 @@ def passes_post_multiplicity_veto(readout_data, stats_data):
         200 us after this signal.
 
     """
-    pass
+    return True
 
 def has_prompt_energy(rec_data):
     """
         Return True if this event has prompt-like energy (0.7, 12) MeV.
 
     """
-    pass
+    energy = rec_data['energy']
+    MIN_E = 0.7
+    MAX_E = 12
+    return energy > MIN_E and energy < MAX_E
 
 def has_delayed_energy(rec_data):
     """
         Return True if this event has delayed_like energy (6, 12) MeV.
 
     """
-    pass
+    energy = rec_data['energy']
+    MIN_E = 6
+    MAX_E = 12
+    return energy > MIN_E and energy < MAX_E
 
 def is_prompt_like(readout_data, stats_data, rec_data):
     """
@@ -95,7 +113,7 @@ def is_prompt_like(readout_data, stats_data, rec_data):
         The criteria for prompt-like are given in the Daya Bay 2016 Long Paper
         as:
 
-           - Passes water shield muon veto 
+           - Passes water shield muon veto
 
            - Passes AD muon veto
 
@@ -127,9 +145,9 @@ def is_delayed_like(readout_data, stats_data, rec_data):
 
            - Passes flasher veto
 
-           - Passes pre multiplicity veto
+           #- Passes pre multiplicity veto
 
-           - Passes post multiplicity veto
+           #- Passes post multiplicity veto
 
            - Erec is between 6 and 12 MeV
 
@@ -138,8 +156,8 @@ def is_delayed_like(readout_data, stats_data, rec_data):
         passes_AD_muon_veto(readout_data, stats_data) and
         passes_AD_shower_muon_veto(readout_data, stats_data) and
         passes_flasher_veto(readout_data, stats_data) and
-        passes_pre_multiplicity_veto(readout_data, stats_data) and
-        passes_post_multiplicity_veto(readout_data, stats_data) and
+        #passes_pre_multiplicity_veto(readout_data, stats_data) and
+        #passes_post_multiplicity_veto(readout_data, stats_data) and
         has_delayed_energy(rec_data))
 
 if __name__ == "__main__":
