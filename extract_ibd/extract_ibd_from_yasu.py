@@ -82,7 +82,20 @@ def main():
         for entrynum in range(startentry, endentry):
             roottree.loadentry(entrynum)
             event = roottree.current
-            data[global_index-start] = getFlattenedData(event)
+            event['nHitsAD'] = event['nHitsAD_prompt']
+            event['chargeAD'] = event['chargeAD_prompt']
+            event['timeAD'] = event['timeAD_prompt']
+            event['ring'] = event['ring_prompt']
+            event['column'] = event['column_prompt']
+            charge_prompt, time_prompt = roottools.getChargesTime(event)
+            event['nHitsAD'] = event['nHitsAD_delayed']
+            event['chargeAD'] = event['chargeAD_delayed']
+            event['timeAD'] = event['timeAD_delayed']
+            event['ring'] = event['ring_delayed']
+            event['column'] = event['column_delayed']
+            charge_delayed, time_delayed = roottools.getChargesTime(event)
+            data[global_index-start] = getFlattenedData(charge_prompt,
+                    time_prompt, charge_delayed, time_delayed)
             global_index += 1
         remainingEntries = stop - global_index
         fileindex += 1

@@ -16,7 +16,7 @@ __all__ = [
 
 METADATA_NAMES = (
         'runno',
-        'fileno', 
+        'fileno',
         'site',
         'det',
         'time_sec',
@@ -32,26 +32,14 @@ NCHANNELS = 4
 NMETADATA = len(METADATA_NAMES)
 ENTRYSIZE = NMETADATA + NCHANNELS * NPIXELS
 
-def getFlattenedData(event):
-    event['nHitsAD'] = event['nHitsAD_prompt']
-    event['chargeAD'] = event['chargeAD_prompt']
-    event['timeAD'] = event['timeAD_prompt']
-    event['ring'] = event['ring_prompt']
-    event['column'] = event['column_prompt']
-    charge2d_prompt, time2d_prompt = roottools.getChargesTime(event)
-    event['nHitsAD'] = event['nHitsAD_delayed']
-    event['chargeAD'] = event['chargeAD_delayed']
-    event['timeAD'] = event['timeAD_delayed']
-    event['ring'] = event['ring_delayed']
-    event['column'] = event['column_delayed']
-    charge2d_delayed, time2d_delayed = roottools.getChargesTime(event)
+def getFlattenedData(charge_prompt, time_prompt, charge_delayed, time_delayed):
     # Reshape everything into one long vector
     flatteneds = [
         # reshape(-1) produces a 1D array
-        charge2d_prompt.reshape(-1),
-        time2d_prompt.reshape(-1),
-        charge2d_delayed.reshape(-1),
-        time2d_delayed.reshape(-1),
+        charge_prompt.reshape(-1),
+        time_prompt.reshape(-1),
+        charge_delayed.reshape(-1),
+        time_delayed.reshape(-1),
         np.array([event[name] for name in METADATA_NAMES])
     ]
     return np.hstack(flatteneds)
