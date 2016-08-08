@@ -162,20 +162,25 @@ if __name__ == "__main__":
 
     readout = rt.makeCalibReadoutTree(rootfilename)
     stats = rt.makeCalibStatsTree(rootfilename)
+    rec = rt.makeRecTree(rootfilename)
 
     num_triggers = readout.numEntries()
-    assert num_triggers == stats.numEntries(), "uneven TTree lengths"
-    logging.debug("num triggers = %d", num_triggers)
+    assert num_triggers == stats.numEntries(), "len(readout) != len(stats)"
+    assert num_triggers == rec.numEntries(), "len(readout) != len(rec)"
+    logging.info("num triggers = %d", num_triggers)
     # Determine which events are prompt-like and which ones are delayed-like
     # (allow for overlap: in particular, all delayed-like events are also
     # prompt-like).
-    for i, (readout_data, stats_data) in enumerate(itertools.izip(readout.getentries(),
-            stats.getentries())):
-        logging.debug('i = %d', i) 
-        logging.debug('nhitsad = %d', readout_data['nHitsAD'])
-        logging.debug('len(ring) = %d', len(readout_data['ring']))
-        logging.debug('len(column) = %d', len(readout_data['column']))
-        charge, time = rt.getChargesTime(readout_data, preprocess_flag=False)
+    prompt_like_events = []
+    delayed_like_events = []
+    for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
+            stats.getentries(), rec.getentries())):
+        logging.debug('i = %d', i)
+        if is_IBD_trigger(readout_data):
+            if is_prompt_like(readout_data, stats_data, rec_data):
+                prompt_like_events.append(readout_data)
+            if is_delayed_like(readout_data, stats_data, rec_data):
+                delayed_like_events.append(readout_data)
         if i % 10000 == 0:
             logging.info("At entry number %d", i)
         if i == 20000:
