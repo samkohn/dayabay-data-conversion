@@ -70,22 +70,6 @@ def passes_flasher_veto(readout_data, stats_data):
 
     return (Q3 / (Q2 + Q4))**2 + (Qmax / Qtot / SCALE)**2 < 1
 
-def passes_pre_multiplicity_veto(readout_data, stats_data):
-    """
-        Veto and return false if there is not exactly one prompt-energy-like
-        signal <400 us before this signal.
-
-    """
-    return True
-
-def passes_post_multiplicity_veto(readout_data, stats_data):
-    """
-        Veto and return false if there is any delayed-energy-like signal within
-        200 us after this signal.
-
-    """
-    return True
-
 def has_prompt_energy(rec_data):
     """
         Return True if this event has prompt-like energy (0.7, 12) MeV.
@@ -145,10 +129,6 @@ def is_delayed_like(readout_data, stats_data, rec_data):
 
            - Passes flasher veto
 
-           #- Passes pre multiplicity veto
-
-           #- Passes post multiplicity veto
-
            - Erec is between 6 and 12 MeV
 
     """
@@ -156,8 +136,6 @@ def is_delayed_like(readout_data, stats_data, rec_data):
         passes_AD_muon_veto(readout_data, stats_data) and
         passes_AD_shower_muon_veto(readout_data, stats_data) and
         passes_flasher_veto(readout_data, stats_data) and
-        #passes_pre_multiplicity_veto(readout_data, stats_data) and
-        #passes_post_multiplicity_veto(readout_data, stats_data) and
         has_delayed_energy(rec_data))
 
 if __name__ == "__main__":
