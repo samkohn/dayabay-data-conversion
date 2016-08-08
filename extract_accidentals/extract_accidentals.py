@@ -90,6 +90,21 @@ def has_delayed_energy(rec_data):
     MAX_E = 12
     return energy > MIN_E and energy < MAX_E
 
+def is_IBD_trigger(readout_data):
+    """
+        Return True if the event is a trigger in an AD with the ESUM and NHIT
+        triggers activated.
+
+    """
+    AD_codes = (1, 2, 3, 4)
+    ESUM_code = 0x10001000
+    NHIT_code = 0x10000100
+    trigger_code = ESUM_code | NHIT_code
+    detector = readout_data['detector']
+    trigger = readout_data['triggerType']
+    return (detector in AD_codes and
+            trigger == trigger_code)
+
 def is_prompt_like(readout_data, stats_data, rec_data):
     """
         Return True if the event data suggests it is prompt-like.
