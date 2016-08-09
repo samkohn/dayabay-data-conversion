@@ -194,7 +194,8 @@ def get_num_stat_entries(filename):
 
 def makeCalibReadoutTree(filename):
     treename = '/Event/CalibReadout/CalibReadoutHeader'
-    intbranches = ['nHitsAD','triggerNumber', 'detector']
+    intbranches = ['nHitsAD','triggerNumber', 'detector', 'triggerType',
+    'triggerTimeSec', 'triggerTimeNanoSec']
     floatbranches = []
     ivectorbranches = ["ring","column","wallNumber"] #,"wallspot"]
     fvectorbranches = ["timeAD","chargeAD", "timePool", "chargePool", "wallSpot"]
@@ -203,13 +204,26 @@ def makeCalibReadoutTree(filename):
 
 def makeCalibStatsTree(filename):
     treename = '/Event/Data/CalibStats'
-    floatbranches = ['MaxQ', 'Quadrant', 'time_PSD', 'time_PSD1', 'MaxQ_2inchPMT', 'NominalCharge'] #, 'dtLast_AD1_ms', 'dtLast_AD2_ms', 'dtLast_AD3_ms', 'dtLast_AD4_ms'] 
+    floatbranches = ['MaxQ', 'Quadrant', 'time_PSD', 'time_PSD1',
+            'MaxQ_2inchPMT', 'NominalCharge', 'dtLastIWS_ms', 'dtLastOWS_ms',
+            'dtNextIWS_ms', 'dtNextOWS_ms', 'dtLast_ADMuon_ms',
+            'dtLast_ADShower_ms', 'QuadrantQ2', 'QuadrantQ3', 'QuadrantQ4']
+    # etc, 'dtLast_AD1_ms', 'dtLast_AD2_ms', 'dtLast_AD3_ms', 'dtLast_AD4_ms']
     intbranches = ['triggerNumber']#["detector","triggerNumber"] #,"triggerType","triggerTimeSec","triggerTimeNanoSec","nHitsAD","nHitsPool"]    
     ivectorbranches = []
     fvectorbranches = []
     t2 = RootTree(filename, treename, intbranches=intbranches, floatbranches=floatbranches, ivectorbranches=ivectorbranches, fvectorbranches=fvectorbranches)
     return t2
     
+def makeRecTree(filename):
+    treename = '/Event/Rec/AdSimple'
+    floatbranches = ['energy']
+    intbranches = []
+    ivectorbranches = []
+    fvectorbranches = []
+    return RootTree(filename, treename, intbranches=intbranches,
+            floatbranches=floatbranches, ivectorbranches=ivectorbranches,
+            fvectorbranches=fvectorbranches)
 
 def rootfileiter(filename):
     t2 = makeCalibStatsTree(filename)
