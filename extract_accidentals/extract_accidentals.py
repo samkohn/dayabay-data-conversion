@@ -242,7 +242,3 @@ if __name__ == "__main__":
                 all_data = {}
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 prompt_like_events.append((i, all_data))
-        if i % 10000 == 0:
-            logging.info("At entry number %d", i)
-        if i == 20000:
-            break
