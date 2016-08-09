@@ -189,6 +189,19 @@ def is_singles_like(stats_data):
     # Ensure that all of the dts are larger than the exclusion time
     return all(map(lambda dt: dt > exclusion_time, dts.values()))
 
+def bulk_update(first, *args):
+    """
+        An extension of the dict.update which updates one dict with many more
+        dicts.
+
+        Like the normal dict.update, returns None.
+
+    """
+    for other in args:
+        first.update(other)
+
+    return None
+
 if __name__ == "__main__":
     outfilename = "accidentals.h5"
     h5file = h5py.File(outfilename, "w")
@@ -214,9 +227,13 @@ if __name__ == "__main__":
         logging.debug('i = %d', i)
         if is_IBD_trigger(readout_data) and is_singles_like(stats_data):
             if is_prompt_like(readout_data, stats_data, rec_data):
-                prompt_like_events.append(readout_data)
+                all_data = {}
+                bulk_update(all_data, readout_data, stats_data, rec_data)
+                prompt_like_events.append((i, all_data))
             if is_delayed_like(readout_data, stats_data, rec_data):
-                delayed_like_events.append(readout_data)
+                all_data = {}
+                bulk_update(all_data, readout_data, stats_data, rec_data)
+                prompt_like_events.append((i, all_data))
         if i % 10000 == 0:
             logging.info("At entry number %d", i)
         if i == 20000:
