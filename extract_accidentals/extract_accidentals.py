@@ -189,6 +189,14 @@ def is_singles_like(stats_data):
     # Ensure that all of the dts are larger than the exclusion time
     return all(map(lambda dt: dt > exclusion_time, dts.values()))
 
+def prepareEventDataForH5(prompt, delayed):
+    """
+        Return a numpy array with the relevant data for saving to HDF5.
+
+        This method makes use of the hitmapformat.py module.
+    """
+    pass
+
 def bulk_update(first, *args):
     """
         An extension of the dict.update which updates one dict with many more
