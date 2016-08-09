@@ -153,6 +153,42 @@ def is_delayed_like(readout_data, stats_data, rec_data):
         passes_flasher_veto(readout_data, stats_data) and
         has_delayed_energy(rec_data))
 
+def is_singles_like(stats_data):
+    """
+        Return True if the event data suggests it is singles-like based only on
+        other nearby IBD-like triggers.
+
+        This is in essence a multiplicity cut:
+
+          - last AD trigger and next AD trigger are both more than 400 us away
+
+    """
+    exclusion_time = 400e-3
+    dts = {}
+    dts['last_1'] = stats_data['dtLastAD1_ms']
+    dts['last_2'] = stats_data['dtLastAD2_ms']
+    dts['last_3'] = stats_data['dtLastAD3_ms']
+    dts['last_4'] = stats_data['dtLastAD4_ms']
+    dts['next_1'] = stats_data['dtNextAD1_ms']
+    dts['next_2'] = stats_data['dtNextAD2_ms']
+    dts['next_3'] = stats_data['dtNextAD3_ms']
+    dts['next_4'] = stats_data['dtNextAD4_ms']
+
+    # Some of the ADs are always set to -1 because they don't exist
+    # This may inadvertently include the 0th event in each file which also has
+    # ADs set to -1 since there is no previous trigger.
+    dts['last_1'] = dts['last_1'] if dts['last_1'] > 0 else time_shield + 1
+    dts['last_2'] = dts['last_2'] if dts['last_2'] > 0 else time_shield + 1
+    dts['last_3'] = dts['last_3'] if dts['last_3'] > 0 else time_shield + 1
+    dts['last_4'] = dts['last_4'] if dts['last_4'] > 0 else time_shield + 1
+    dts['next_1'] = dts['next_1'] if dts['next_1'] > 0 else time_shield + 1
+    dts['next_2'] = dts['next_2'] if dts['next_2'] > 0 else time_shield + 1
+    dts['next_3'] = dts['next_3'] if dts['next_3'] > 0 else time_shield + 1
+    dts['next_4'] = dts['next_4'] if dts['next_4'] > 0 else time_shield + 1
+
+    # Ensure that all of the dts are larger than the exclusion time
+    return all(map(lambda dt: dt > exclusion_time, dts.values()))
+
 if __name__ == "__main__":
     outfilename = "accidentals.h5"
     h5file = h5py.File(outfilename, "w")
@@ -176,7 +212,7 @@ if __name__ == "__main__":
     for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
             stats.getentries(), rec.getentries())):
         logging.debug('i = %d', i)
-        if is_IBD_trigger(readout_data):
+        if is_IBD_trigger(readout_data) and is_singles_like(stats_data):
             if is_prompt_like(readout_data, stats_data, rec_data):
                 prompt_like_events.append(readout_data)
             if is_delayed_like(readout_data, stats_data, rec_data):
