@@ -178,14 +178,14 @@ def is_singles_like(stats_data):
     # This may mistakenly not veto the 0th event in each file which also has
     # ADs set to -1 since there is no previous trigger. I don't think that
     # matters.
-    dts['last_1'] = dts['last_1'] if dts['last_1'] > 0 else time_shield + 1
-    dts['last_2'] = dts['last_2'] if dts['last_2'] > 0 else time_shield + 1
-    dts['last_3'] = dts['last_3'] if dts['last_3'] > 0 else time_shield + 1
-    dts['last_4'] = dts['last_4'] if dts['last_4'] > 0 else time_shield + 1
-    dts['next_1'] = dts['next_1'] if dts['next_1'] > 0 else time_shield + 1
-    dts['next_2'] = dts['next_2'] if dts['next_2'] > 0 else time_shield + 1
-    dts['next_3'] = dts['next_3'] if dts['next_3'] > 0 else time_shield + 1
-    dts['next_4'] = dts['next_4'] if dts['next_4'] > 0 else time_shield + 1
+    dts['last_1'] = dts['last_1'] if dts['last_1'] > 0 else exclusion_time + 1
+    dts['last_2'] = dts['last_2'] if dts['last_2'] > 0 else exclusion_time + 1
+    dts['last_3'] = dts['last_3'] if dts['last_3'] > 0 else exclusion_time + 1
+    dts['last_4'] = dts['last_4'] if dts['last_4'] > 0 else exclusion_time + 1
+    dts['next_1'] = dts['next_1'] if dts['next_1'] > 0 else exclusion_time + 1
+    dts['next_2'] = dts['next_2'] if dts['next_2'] > 0 else exclusion_time + 1
+    dts['next_3'] = dts['next_3'] if dts['next_3'] > 0 else exclusion_time + 1
+    dts['next_4'] = dts['next_4'] if dts['next_4'] > 0 else exclusion_time + 1
 
     # Ensure that all of the dts are larger than the exclusion time
     return all(map(lambda dt: dt > exclusion_time, dts.values()))
@@ -330,4 +330,5 @@ triggers and to the last muon.""" % (ENTRYSIZE, NPIXELS-1, NPIXELS,
         outdset.attrs[str(i)] = name
         outdset.attrs[name] = i
 
-    outfile.close()
+    h5file.close()
+    print "Exiting..."
