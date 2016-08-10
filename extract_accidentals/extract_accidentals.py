@@ -244,3 +244,43 @@ if __name__ == "__main__":
                 all_data = {}
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 prompt_like_events.append((i, all_data))
+
+    # Now the two lists contain the data needed to assemble a set of
+    # accidentals.
+
+    # Algorithm: Shuffle the two lists' orders. Then pair up events. As a
+    # trivial safety measure, ensure that no event is paired up with itself.
+    # TODO: this algorithm mixes different ADs together. Fix that
+    prompt_like_events = np.array(prompt_like_events)
+    delayed_like_events = np.array(delayed_like_events)
+    np.random.shuffle(prompt_like_events)
+    np.random.shuffle(delayed_like_events)
+    # Note: python's zip method discards any unpaired events. This is fine in
+    # our case since there's no default and we don't want repeats.
+    pairs = zip(prompt_like_events, delayed_like_events)
+
+    # The expected distribution of dts between prompt and delayed for
+    # uncorrelated signals is an exponential with a time constant of 1/rate.
+    # Since this time (20ms) is much greater than our time cut (200us) by a
+    # factor of 100, the exponential distribution is closely approximated by a
+    # uniform distribution. (The PDFs differ by one part in one hundred near the
+    # time cut region.)
+    DT_THRESHOLD = 0.2  # ms
+    dts = np.random.uniform(0, DT_THRESHOLD, (len(pairs),))
+
+    for dt, (prompt, delayed) in zip(dts, pairs):
+        event = {}
+        event['runno'] = runno  # from original file IO
+        event['fileno'] = fileno  # from original file IO
+        event['site'] = prompt['site']
+        event['det'] = prompt['detector']
+        event['time_sec'] = prompt['triggerTimeSec']
+        event['time_nanosec'] = prompt['triggerTimeNanoSec']
+        event['trigno_prompt'] = prompt['triggerNumber']
+        event['trigno_delayed'] = delayed['triggerNumber']
+        event['dt_last_ad_muon'] = prompt['dtLast_ADMuon_ms']
+        event['dt_last_ad_shower_muon'] = prompt['dtLast_ADShower_ms']
+        event['dt_last_wp_muon'] = min(prompt['dtLastIWS_ms'],
+                prompt['dtLastOWS_ms'])
+        event['dt_IBD'] = dt
+        #TODO
