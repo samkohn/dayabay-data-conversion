@@ -190,13 +190,31 @@ def is_singles_like(stats_data):
     # Ensure that all of the dts are larger than the exclusion time
     return all(map(lambda dt: dt > exclusion_time, dts.values()))
 
-def prepareEventDataForH5(prompt, delayed):
+def prepareEventDataForH5(prompt, delayed, dt):
     """
         Return a numpy array with the relevant data for saving to HDF5.
 
         This method makes use of the hitmapformat.py module.
     """
-    pass
+    event = {}
+    event['runno'] = runno  # from original file IO
+    event['fileno'] = fileno  # from original file IO
+    event['site'] = prompt['site']
+    event['det'] = prompt['detector']
+    event['time_sec'] = prompt['triggerTimeSec']
+    event['time_nanosec'] = prompt['triggerTimeNanoSec']
+    event['trigno_prompt'] = prompt['triggerNumber']
+    event['trigno_delayed'] = delayed['triggerNumber']
+    event['dt_last_ad_muon'] = prompt['dtLast_ADMuon_ms']
+    event['dt_last_ad_shower_muon'] = prompt['dtLast_ADShower_ms']
+    event['dt_last_wp_muon'] = min(prompt['dtLastIWS_ms'],
+            prompt['dtLastOWS_ms'])
+    event['dt_IBD'] = dt
+    charge_prompt, time_prompt = rt.getChargesTime(prompt)
+    charge_delayed, time_delayed = rt.getChargesTime(delayed)
+    flattened = getFlattenedData(event,
+            charge_prompt, time_prompt, charge_delayed, time_delayed)
+    return flattened
 
 def bulk_update(first, *args):
     """
@@ -273,19 +291,3 @@ if __name__ == "__main__":
     DT_THRESHOLD = 0.2  # ms
     dts = np.random.uniform(0, DT_THRESHOLD, (len(pairs),))
 
-    for dt, (prompt, delayed) in zip(dts, pairs):
-        event = {}
-        event['runno'] = runno  # from original file IO
-        event['fileno'] = fileno  # from original file IO
-        event['site'] = prompt['site']
-        event['det'] = prompt['detector']
-        event['time_sec'] = prompt['triggerTimeSec']
-        event['time_nanosec'] = prompt['triggerTimeNanoSec']
-        event['trigno_prompt'] = prompt['triggerNumber']
-        event['trigno_delayed'] = delayed['triggerNumber']
-        event['dt_last_ad_muon'] = prompt['dtLast_ADMuon_ms']
-        event['dt_last_ad_shower_muon'] = prompt['dtLast_ADShower_ms']
-        event['dt_last_wp_muon'] = min(prompt['dtLastIWS_ms'],
-                prompt['dtLastOWS_ms'])
-        event['dt_IBD'] = dt
-        #TODO
