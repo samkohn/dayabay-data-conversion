@@ -236,7 +236,7 @@ if __name__ == "__main__":
     fileno = '0012'
     rootfilename = ("/global/project/projectdirs/dayabay/data/exp/" +
         "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
-        "Physics.EH1-Merged.P14A-P.%s.root") % (runno, fileno)
+        "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)
 
     readout = rt.makeCalibReadoutTree(rootfilename)
     stats = rt.makeCalibStatsTree(rootfilename)
