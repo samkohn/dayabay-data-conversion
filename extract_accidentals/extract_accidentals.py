@@ -213,9 +213,11 @@ def bulk_update(first, *args):
 if __name__ == "__main__":
     outfilename = "accidentals.h5"
     h5file = h5py.File(outfilename, "w")
+    runno = '0021221'
+    fileno = '0012'
     rootfilename = ("/global/project/projectdirs/dayabay/data/exp/" +
-        "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.0021221." +
-        "Physics.EH1-Merged.P14A-P._0012.root")
+        "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
+        "Physics.EH1-Merged.P14A-P.%s.root") % (runno, fileno)
 
     readout = rt.makeCalibReadoutTree(rootfilename)
     stats = rt.makeCalibStatsTree(rootfilename)
