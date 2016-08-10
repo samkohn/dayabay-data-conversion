@@ -207,8 +207,9 @@ def makeCalibStatsTree(filename):
     floatbranches = ['MaxQ', 'Quadrant', 'time_PSD', 'time_PSD1',
             'MaxQ_2inchPMT', 'NominalCharge', 'dtLastIWS_ms', 'dtLastOWS_ms',
             'dtNextIWS_ms', 'dtNextOWS_ms', 'dtLast_ADMuon_ms',
-            'dtLast_ADShower_ms', 'QuadrantQ2', 'QuadrantQ3', 'QuadrantQ4']
-    # etc, 'dtLast_AD1_ms', 'dtLast_AD2_ms', 'dtLast_AD3_ms', 'dtLast_AD4_ms']
+            'dtLast_ADShower_ms', 'QuadrantQ2', 'QuadrantQ3', 'QuadrantQ4',
+            'dtLastAD1_ms', 'dtLastAD2_ms', 'dtLastAD3_ms', 'dtLastAD4_ms',
+            'dtNextAD1_ms', 'dtNextAD2_ms', 'dtNextAD3_ms', 'dtNextAD4_ms']
     intbranches = ['triggerNumber']#["detector","triggerNumber"] #,"triggerType","triggerTimeSec","triggerTimeNanoSec","nHitsAD","nHitsPool"]    
     ivectorbranches = []
     fvectorbranches = []
