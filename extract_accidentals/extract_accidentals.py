@@ -264,7 +264,9 @@ if __name__ == "__main__":
     # Since this time (20ms) is much greater than our time cut (200us) by a
     # factor of 100, the exponential distribution is closely approximated by a
     # uniform distribution. (The PDFs differ by one part in one hundred near the
-    # time cut region.)
+    # time cut region.) Using a uniform distribution is faster since I can
+    # control the domain of the PDF without manually truncating the
+    # distribution.
     DT_THRESHOLD = 0.2  # ms
     dts = np.random.uniform(0, DT_THRESHOLD, (len(pairs),))
 

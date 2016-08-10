@@ -33,7 +33,10 @@ NCHANNELS = 4
 NMETADATA = len(METADATA_NAMES)
 ENTRYSIZE = NMETADATA + NCHANNELS * NPIXELS
 
-def getFlattenedData(charge_prompt, time_prompt, charge_delayed, time_delayed):
+def getFlattenedData(event, charge_prompt, time_prompt, charge_delayed, time_delayed):
+    """Given metadata stored in "event," as well as the hitmaps in charge and
+    time for prompt and delayed triggers, reformat the data into a 1D numpy
+    array so it can be stored more easily."""
     # Reshape everything into one long vector
     flatteneds = [
         # reshape(-1) produces a 1D array
@@ -46,9 +49,9 @@ def getFlattenedData(charge_prompt, time_prompt, charge_delayed, time_delayed):
     return np.hstack(flatteneds)
 
 def unflattenData(datavec):
-    """Expect a 779-length 1D numpy array or similar. Split it into four 8x24
-    images plus the metadata, and return a dict with the appropriate
-    attributes.
+    """Expect an ENTRYSIZE-length 1D numpy array or similar. Split it into four 8x24
+    images plus the metadata, and return a dict with the
+    appropriately-formatted data.
     """
     event = {}
     shape = (8, 24)
