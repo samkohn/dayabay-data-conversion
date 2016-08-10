@@ -195,7 +195,7 @@ def get_num_stat_entries(filename):
 def makeCalibReadoutTree(filename):
     treename = '/Event/CalibReadout/CalibReadoutHeader'
     intbranches = ['nHitsAD','triggerNumber', 'detector', 'triggerType',
-    'triggerTimeSec', 'triggerTimeNanoSec']
+    'triggerTimeSec', 'triggerTimeNanoSec', 'site']
     floatbranches = []
     ivectorbranches = ["ring","column","wallNumber"] #,"wallspot"]
     fvectorbranches = ["timeAD","chargeAD", "timePool", "chargePool", "wallSpot"]
