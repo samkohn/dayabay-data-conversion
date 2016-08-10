@@ -263,9 +263,10 @@ if __name__ == "__main__":
                 all_data = {}
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 prompt_like_events.append((i, all_data))
-        if len(prompt_like_events > 10):
+        if i > 100:
             break
 
+    print "Made it this far"
     # Now the two lists contain the data needed to assemble a set of
     # accidentals.
 
