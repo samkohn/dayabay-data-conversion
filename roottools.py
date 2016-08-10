@@ -197,8 +197,8 @@ def makeCalibReadoutTree(filename):
     intbranches = ['nHitsAD','triggerNumber', 'detector', 'triggerType',
     'triggerTimeSec', 'triggerTimeNanoSec', 'site']
     floatbranches = []
-    ivectorbranches = ["ring","column","wallNumber"] #,"wallspot"]
-    fvectorbranches = ["timeAD","chargeAD", "timePool", "chargePool", "wallSpot"]
+    ivectorbranches = ["ring","column"]
+    fvectorbranches = ["timeAD","chargeAD"]
     t1 = RootTree(filename, treename, intbranches=intbranches, floatbranches=floatbranches, ivectorbranches=ivectorbranches, fvectorbranches=fvectorbranches)
     return t1
 
