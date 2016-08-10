@@ -5,10 +5,10 @@ that contaminates the IBD sample.
 
 """
 import roottools as rt
+from hitmapformat import *
 import matplotlib.pyplot as plt
 import h5py
 import numpy as np
-import pickle
 import itertools
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -175,8 +175,9 @@ def is_singles_like(stats_data):
     dts['next_4'] = stats_data['dtNextAD4_ms']
 
     # Some of the ADs are always set to -1 because they don't exist
-    # This may inadvertently include the 0th event in each file which also has
-    # ADs set to -1 since there is no previous trigger.
+    # This may mistakenly not veto the 0th event in each file which also has
+    # ADs set to -1 since there is no previous trigger. I don't think that
+    # matters.
     dts['last_1'] = dts['last_1'] if dts['last_1'] > 0 else time_shield + 1
     dts['last_2'] = dts['last_2'] if dts['last_2'] > 0 else time_shield + 1
     dts['last_3'] = dts['last_3'] if dts['last_3'] > 0 else time_shield + 1
@@ -244,13 +245,15 @@ if __name__ == "__main__":
                 all_data = {}
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 prompt_like_events.append((i, all_data))
+        if len(prompt_like_events > 10):
+            break
 
     # Now the two lists contain the data needed to assemble a set of
     # accidentals.
 
     # Algorithm: Shuffle the two lists' orders. Then pair up events. As a
     # trivial safety measure, ensure that no event is paired up with itself.
-    # TODO: this algorithm mixes different ADs together. Fix that
+    # TODO: this algorithm mixes different ADs together. Fix that.
     prompt_like_events = np.array(prompt_like_events)
     delayed_like_events = np.array(delayed_like_events)
     np.random.shuffle(prompt_like_events)
