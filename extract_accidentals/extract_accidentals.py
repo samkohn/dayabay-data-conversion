@@ -279,6 +279,8 @@ if __name__ == "__main__":
     # Note: python's zip method discards any unpaired events. This is fine in
     # our case since there's no default and we don't want repeats.
     pairs = zip(prompt_like_events, delayed_like_events)
+    num_pairs = len(pairs)
+    dset_to_save = np.empty((num_pairs, ENTRYSIZE), dtype=float)
 
     # The expected distribution of dts between prompt and delayed for
     # uncorrelated signals is an exponential with a time constant of 1/rate.
@@ -291,3 +293,41 @@ if __name__ == "__main__":
     DT_THRESHOLD = 0.2  # ms
     dts = np.random.uniform(0, DT_THRESHOLD, (len(pairs),))
 
+    for i, (dt, (prompt, delayed)) in enumerate(zip(dts, pairs)):
+        dset_to_save[i, :] = prepareEventDataForH5(prompt, delayed, dt)
+    outdset = h5file.create_dataset("accidentals_bg_data",
+            data=dset_to_save, compression="gzip", chunks=True)
+
+    outdset.attrs['description'] = \
+"""This dataset contains accidental background pairs that have been created
+artificially by pairing up singles triggers.
+
+The selection criteria are the same as the IBD selection criteria for
+prompt-like singles and delayed-like singles, with the only difference being
+the multiplicity cut, which rejects candidates that are within 400us before or
+after any other event with >0.7 MeV.
+
+See the 'structure' attribute for a detailed description of the dset layout.
+
+Each row in the dataset contains flattened versions of the charge and time on
+each PMT for both the prompt and delayed events, followed by some metadata.
+There are currently %d metadata items, which can be accessed as attributes from
+0 to %d. Reverse lookup is also implemented to get the index of a given piece
+of metadata.""" % (NMETADATA, NMETADATA)
+    outdset.attrs['structure'] = \
+"""Data set structure: N rows by %d columns. Each column has the following:
+
+0-%d: flattened 8x24 of prompt charge
+%d-%d: flattened 8x24 of prompt time
+%d-%d: flattened 8x24 of delayed charge
+%d-%d: flattened 8x24 of delayed time
+%d-%d: metadata such as trigger numbers, site and AD info, and dt between
+triggers and to the last muon.""" % (ENTRYSIZE, NPIXELS-1, NPIXELS,
+    2*NPIXELS-1, 2*NPIXELS, 3*NPIXELS-1, 3*NPIXELS, 4*NPIXELS-1, 4*NPIXELS,
+    ENTRYSIZE-1)
+    # Set metadata attributes so people know what's in the last bit of each row
+    for i, name in enumerate(METADATA_NAMES):
+        outdset.attrs[str(i)] = name
+        outdset.attrs[name] = i
+
+    outfile.close()
