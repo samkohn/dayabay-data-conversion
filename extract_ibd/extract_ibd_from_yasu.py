@@ -94,7 +94,8 @@ def main():
             event['ring'] = event['ring_delayed']
             event['column'] = event['column_delayed']
             charge_delayed, time_delayed = roottools.getChargesTime(event)
-            data[global_index-start] = getFlattenedData(charge_prompt,
+            event['dt_IBD'] = event['dt']
+            data[global_index-start] = getFlattenedData(event, charge_prompt,
                     time_prompt, charge_delayed, time_delayed)
             global_index += 1
         remainingEntries = stop - global_index
