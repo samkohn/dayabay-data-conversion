@@ -23,6 +23,7 @@ METADATA_NAMES = (
         'time_nanosec',
         'trigno_prompt',
         'trigno_delayed',
+        'dt',
         'dt_last_ad_muon',
         'dt_last_ad_shower_muon',
         'dt_last_wp_muon'
