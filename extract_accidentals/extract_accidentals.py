@@ -3,15 +3,19 @@ This script will create a sample of accidental IBD pairs (uncorrelated
 background) that is statistically similar to the true accidental background
 that contaminates the IBD sample.
 
+Info on software requirements. This software requires ROOT 6, specifically
+version 6.06.04.
+
 """
 import roottools as rt
 from hitmapformat import *
 import matplotlib.pyplot as plt
 import h5py
+import sys
 import numpy as np
 import itertools
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 def passes_WS_muon_veto(readout_data, stats_data):
     """
@@ -65,7 +69,7 @@ def passes_flasher_veto(readout_data, stats_data):
     Q3 = stats_data['QuadrantQ3']
     Q4 = stats_data['QuadrantQ4']
     Qmax = stats_data['MaxQ']
-    Qtot = stats['NominalCharge']
+    Qtot = stats_data['NominalCharge']
     SCALE = 0.45
 
     return (Q3 / (Q2 + Q4))**2 + (Qmax / Qtot / SCALE)**2 < 1
@@ -163,6 +167,7 @@ def is_singles_like(stats_data):
           - last AD trigger and next AD trigger are both more than 400 us away
 
     """
+    return True
     exclusion_time = 400e-3
     dts = {}
     dts['last_1'] = stats_data['dtLastAD1_ms']
@@ -233,7 +238,7 @@ if __name__ == "__main__":
     outfilename = "accidentals.h5"
     h5file = h5py.File(outfilename, "w")
     runno = '0021221'
-    fileno = '0012'
+    fileno = '0016'
     rootfilename = ("/global/project/projectdirs/dayabay/data/exp/" +
         "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
         "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)
@@ -251,22 +256,25 @@ if __name__ == "__main__":
     # prompt-like).
     prompt_like_events = []
     delayed_like_events = []
+    max_prompts_desired = 1000
+    max_delayeds_desired = 1000
     for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
             stats.getentries(), rec.getentries())):
-        logging.debug('i = %d', i)
+        logging.debug("event number %d", i)
         if is_IBD_trigger(readout_data) and is_singles_like(stats_data):
-            if is_prompt_like(readout_data, stats_data, rec_data):
+            if (len(prompt_like_events) < max_prompts_desired and
+                    is_prompt_like(readout_data, stats_data, rec_data)):
                 all_data = {}
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 prompt_like_events.append((i, all_data))
-            if is_delayed_like(readout_data, stats_data, rec_data):
+            if (len(delayed_like_events) < max_delayeds_desired and
+                    is_delayed_like(readout_data, stats_data, rec_data)):
+                logging.debug('is delayed_like')
                 all_data = {}
                 bulk_update(all_data, readout_data, stats_data, rec_data)
-                prompt_like_events.append((i, all_data))
-        if i > 100:
-            break
-
-    print "Made it this far"
+                logging.debug("all_keys = %s", str(all_data.keys()))
+                delayed_like_events.append((i, all_data))
+    logging.debug('after loop')
     # Now the two lists contain the data needed to assemble a set of
     # accidentals.
 
@@ -294,7 +302,7 @@ if __name__ == "__main__":
     DT_THRESHOLD = 0.2  # ms
     dts = np.random.uniform(0, DT_THRESHOLD, (len(pairs),))
 
-    for i, (dt, (prompt, delayed)) in enumerate(zip(dts, pairs)):
+    for i, (dt, ((j, prompt), (k, delayed))) in enumerate(zip(dts, pairs)):
         dset_to_save[i, :] = prepareEventDataForH5(prompt, delayed, dt)
     outdset = h5file.create_dataset("accidentals_bg_data",
             data=dset_to_save, compression="gzip", chunks=True)

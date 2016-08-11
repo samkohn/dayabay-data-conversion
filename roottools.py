@@ -3,6 +3,7 @@ import ROOT
 import array
 import numpy as np
 import itertools
+import logging
 
 class RootTree():
     def __init__(self,filename, treename, intbranches=[], floatbranches=[],ivectorbranches=[],fvectorbranches=[]):
@@ -44,7 +45,7 @@ class RootTree():
     def loadentry(self, i):
         self.ch.LoadTree(i)
         self.ch.GetEntry(i)
-        self.current = Entry(self, True)
+        self.current = Entry(self, False)
         return self.current
      
     def getentries(self):
