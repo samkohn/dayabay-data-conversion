@@ -157,7 +157,7 @@ def is_delayed_like(readout_data, stats_data, rec_data):
         passes_flasher_veto(readout_data, stats_data) and
         has_delayed_energy(rec_data))
 
-def is_singles_like(stats_data):
+def is_singles_like(readout_data, stats_data):
     """
         Return True if the event data suggests it is singles-like based only on
         other nearby IBD-like triggers.
@@ -167,33 +167,33 @@ def is_singles_like(stats_data):
           - last AD trigger and next AD trigger are both more than 400 us away
 
     """
-    return True
+    thisDetector = readout_data['detector']
+    thisSite = readout_data['site']
+    EH1 = 1
+    EH2 = 2
+    EH3 = 3
+    if thisSite == EH1 or thisSite == EH2:
+        ADs = [1, 2]
+    elif thisSite == EH3:
+        ADs = [1, 2, 3, 4]
+    else:
+        return
+    if thisDetector in ADs:
+        last_name = 'dtLastAD%d_ms' % thisDetector
+        next_name = 'dtNextAD%d_ms' % thisDetector
+    else:
+        return
     exclusion_time = 400e-3
-    dts = {}
-    dts['last_1'] = stats_data['dtLastAD1_ms']
-    dts['last_2'] = stats_data['dtLastAD2_ms']
-    dts['last_3'] = stats_data['dtLastAD3_ms']
-    dts['last_4'] = stats_data['dtLastAD4_ms']
-    dts['next_1'] = stats_data['dtNextAD1_ms']
-    dts['next_2'] = stats_data['dtNextAD2_ms']
-    dts['next_3'] = stats_data['dtNextAD3_ms']
-    dts['next_4'] = stats_data['dtNextAD4_ms']
-
     # Some of the ADs are always set to -1 because they don't exist
     # This may mistakenly not veto the 0th event in each file which also has
     # ADs set to -1 since there is no previous trigger. I don't think that
     # matters.
-    dts['last_1'] = dts['last_1'] if dts['last_1'] > 0 else exclusion_time + 1
-    dts['last_2'] = dts['last_2'] if dts['last_2'] > 0 else exclusion_time + 1
-    dts['last_3'] = dts['last_3'] if dts['last_3'] > 0 else exclusion_time + 1
-    dts['last_4'] = dts['last_4'] if dts['last_4'] > 0 else exclusion_time + 1
-    dts['next_1'] = dts['next_1'] if dts['next_1'] > 0 else exclusion_time + 1
-    dts['next_2'] = dts['next_2'] if dts['next_2'] > 0 else exclusion_time + 1
-    dts['next_3'] = dts['next_3'] if dts['next_3'] > 0 else exclusion_time + 1
-    dts['next_4'] = dts['next_4'] if dts['next_4'] > 0 else exclusion_time + 1
+    dt_last = stats_data[last_name]
+    dt_next = stats_data[next_name]
 
-    # Ensure that all of the dts are larger than the exclusion time
-    return all(map(lambda dt: dt > exclusion_time, dts.values()))
+    # Ensure that the time is larger than the exclusion time
+    return (dt_last > exclusion_time and
+            dt_next > exclusion_time)
 
 def prepareEventDataForH5(prompt, delayed, dt):
     """
@@ -263,7 +263,7 @@ if __name__ == "__main__":
         if (len(prompt_like_events) >= max_prompts_desired and
                 len(delayed_like_events) >= max_delayeds_desired):
             break
-        if is_IBD_trigger(readout_data) and is_singles_like(stats_data):
+        if is_IBD_trigger(readout_data) and is_singles_like(readout_data, stats_data):
             if (len(prompt_like_events) < max_prompts_desired and
                     is_prompt_like(readout_data, stats_data, rec_data)):
                 all_data = {}
