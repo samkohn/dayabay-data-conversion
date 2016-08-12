@@ -260,7 +260,6 @@ if __name__ == "__main__":
     max_delayeds_desired = 1000
     for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
             stats.getentries(), rec.getentries())):
-        logging.debug("event number %d", i)
         if is_IBD_trigger(readout_data) and is_singles_like(stats_data):
             if (len(prompt_like_events) < max_prompts_desired and
                     is_prompt_like(readout_data, stats_data, rec_data)):
@@ -272,15 +271,12 @@ if __name__ == "__main__":
                 prompt_like_events.append((i, all_data))
             if (len(delayed_like_events) < max_delayeds_desired and
                     is_delayed_like(readout_data, stats_data, rec_data)):
-                logging.debug('is delayed_like')
                 all_data = {}
                 readout_data.unlazyconstruct()
                 stats_data.unlazyconstruct()
                 rec_data.unlazyconstruct()
                 bulk_update(all_data, readout_data, stats_data, rec_data)
-                logging.debug("all_keys = %s", str(all_data.keys()))
                 delayed_like_events.append((i, all_data))
-    logging.debug('after loop')
     # Now the two lists contain the data needed to assemble a set of
     # accidentals.
 
