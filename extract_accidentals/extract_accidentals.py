@@ -265,12 +265,18 @@ if __name__ == "__main__":
             if (len(prompt_like_events) < max_prompts_desired and
                     is_prompt_like(readout_data, stats_data, rec_data)):
                 all_data = {}
+                readout_data.unlazyconstruct()
+                stats_data.unlazyconstruct()
+                rec_data.unlazyconstruct()
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 prompt_like_events.append((i, all_data))
             if (len(delayed_like_events) < max_delayeds_desired and
                     is_delayed_like(readout_data, stats_data, rec_data)):
                 logging.debug('is delayed_like')
                 all_data = {}
+                readout_data.unlazyconstruct()
+                stats_data.unlazyconstruct()
+                rec_data.unlazyconstruct()
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 logging.debug("all_keys = %s", str(all_data.keys()))
                 delayed_like_events.append((i, all_data))

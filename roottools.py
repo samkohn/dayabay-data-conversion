@@ -46,7 +46,7 @@ class RootTree():
         self.ch.LoadTree(i)
         for branchname in self.branches:
             self.branchDict[branchname].GetEntry(i)
-        self.current = Entry(self, False)
+        self.current = Entry(self, True)
         return self.current
      
     def getentries(self):
