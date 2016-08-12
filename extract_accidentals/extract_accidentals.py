@@ -260,6 +260,9 @@ if __name__ == "__main__":
     max_delayeds_desired = 1000
     for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
             stats.getentries(), rec.getentries())):
+        if (len(prompt_like_events) >= max_prompts_desired and
+                len(delayed_like_events) >= max_delayeds_desired):
+            break
         if is_IBD_trigger(readout_data) and is_singles_like(stats_data):
             if (len(prompt_like_events) < max_prompts_desired and
                     is_prompt_like(readout_data, stats_data, rec_data)):
