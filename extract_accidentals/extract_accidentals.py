@@ -4,7 +4,7 @@ background) that is statistically similar to the true accidental background
 that contaminates the IBD sample.
 
 Info on software requirements. This software requires ROOT 6, specifically
-version 6.06.04.
+version 6.06.04. It currently only works on Edison (and not on Cori).
 
 """
 import roottools as rt
