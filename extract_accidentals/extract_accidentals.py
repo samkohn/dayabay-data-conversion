@@ -234,7 +234,8 @@ def bulk_update(first, *args):
 
     return None
 
-def get_prompt_delayed_like_data_for_file(rootfilename):
+def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired=-1,
+        max_delayeds_desired=-1):
     """Returns two lists, one of prompt-like and one of delayed-like singles
     for the specified file."""
     readout = rt.makeCalibReadoutTree(rootfilename)
@@ -245,13 +246,15 @@ def get_prompt_delayed_like_data_for_file(rootfilename):
     assert num_triggers == stats.numEntries(), "len(readout) != len(stats)"
     assert num_triggers == rec.numEntries(), "len(readout) != len(rec)"
     logging.info("num triggers = %d", num_triggers)
+    if max_prompts_desired < 0:
+        max_prompts_desired = num_triggers
+    if max_delayeds_desired < 0:
+        max_delayeds_desired = num_triggers
     # Determine which events are prompt-like and which ones are delayed-like
     # (allow for overlap: in particular, all delayed-like events are also
     # prompt-like).
     prompt_like_events = []
     delayed_like_events = []
-    max_prompts_desired = 1000
-    max_delayeds_desired = 1000
     for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
             stats.getentries(), rec.getentries())):
         if (len(prompt_like_events) >= max_prompts_desired and
@@ -274,6 +277,7 @@ def get_prompt_delayed_like_data_for_file(rootfilename):
                 rec_data.unlazyconstruct()
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 delayed_like_events.append((i, all_data))
+    return (prompt_like_events, delayed_like_events)
 
 if __name__ == "__main__":
     outfilename = "accidentals.h5"
@@ -286,6 +290,8 @@ if __name__ == "__main__":
 
     # Now the two lists contain the data needed to assemble a set of
     # accidentals.
+    prompt_like_events, delayed_like_events = \
+        get_prompt_delayed_like_data_for_file(rootfilename, 100, 2)
 
     # Algorithm: Shuffle the two lists' orders. Then pair up events. As a
     # trivial safety measure, ensure that no event is paired up with itself.
