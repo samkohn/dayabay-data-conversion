@@ -14,8 +14,8 @@ import h5py
 import sys
 import numpy as np
 import itertools
+import argparse
 import logging
-logging.basicConfig(level=logging.DEBUG)
 
 def passes_WS_muon_veto(readout_data, stats_data):
     """
@@ -279,15 +279,40 @@ def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired=-1,
                 delayed_like_events.append((i, all_data))
     return (prompt_like_events, delayed_like_events)
 
-if __name__ == "__main__":
-    outfilename = "accidentals.h5"
-    h5file = h5py.File(outfilename, "w")
-    runno = '0021221'
-    fileno = '0016'
-    rootfilename = ("/global/project/projectdirs/dayabay/data/exp/" +
-        "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
-        "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)
+def setup_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', '--output', help='name of output h5 file')
+    parser.add_argument('--infiles',
+            help='a text file listing all of the files to draw events from')
+    parser.add_argument('--max-prompt', type=int, default=-1,
+            help='max number of prompt events to read (-1 = all)')
+    parser.add_argument('--max-delayed', type=int, default=-1,
+            help='max number of delayed events to read (-1 = all)')
+    parser.add_argument('-d', '--debug', action='store_true')
+    return parser
 
+
+if __name__ == "__main__":
+    parser = setup_parser()
+    args = parser.parse_args()
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+    outfilename = 'accidentals.h5' if args.output is None else args.output
+    h5file = h5py.File(outfilename, "w")
+
+    if args.infiles is None:
+        runno = '0021221'
+        fileno = '0016'
+        rootfilenames = [("/global/project/projectdirs/dayabay/data/exp/" +
+            "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
+            "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)]
+    else:
+        with open(args.infiles, 'r') as f:
+            rootfilenames = map(str.strip, f.readlines())
+
+    rootfilename = rootfilenames[0]
     # Now the two lists contain the data needed to assemble a set of
     # accidentals.
     prompt_like_events, delayed_like_events = \
