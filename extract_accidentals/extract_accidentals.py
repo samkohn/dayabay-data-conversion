@@ -234,15 +234,9 @@ def bulk_update(first, *args):
 
     return None
 
-if __name__ == "__main__":
-    outfilename = "accidentals.h5"
-    h5file = h5py.File(outfilename, "w")
-    runno = '0021221'
-    fileno = '0016'
-    rootfilename = ("/global/project/projectdirs/dayabay/data/exp/" +
-        "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
-        "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)
-
+def get_prompt_delayed_like_data_for_file(rootfilename):
+    """Returns two lists, one of prompt-like and one of delayed-like singles
+    for the specified file."""
     readout = rt.makeCalibReadoutTree(rootfilename)
     stats = rt.makeCalibStatsTree(rootfilename)
     rec = rt.makeRecTree(rootfilename)
@@ -280,6 +274,16 @@ if __name__ == "__main__":
                 rec_data.unlazyconstruct()
                 bulk_update(all_data, readout_data, stats_data, rec_data)
                 delayed_like_events.append((i, all_data))
+
+if __name__ == "__main__":
+    outfilename = "accidentals.h5"
+    h5file = h5py.File(outfilename, "w")
+    runno = '0021221'
+    fileno = '0016'
+    rootfilename = ("/global/project/projectdirs/dayabay/data/exp/" +
+        "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
+        "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)
+
     # Now the two lists contain the data needed to assemble a set of
     # accidentals.
 
