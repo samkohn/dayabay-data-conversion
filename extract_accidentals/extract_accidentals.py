@@ -338,22 +338,32 @@ if __name__ == "__main__":
         with open(args.infiles, 'r') as f:
             rootfilenames = map(str.strip, f.readlines())
 
-    rootfilename = rootfilenames[0]
-    # Now the two lists contain the data needed to assemble a set of
-    # accidentals.
-    prompt_like_events, delayed_like_events = \
-        get_prompt_delayed_like_data_for_file(rootfilename, 100, 2)
+    prompts_to_fetch = args.max_prompt
+    delayeds_to_fetch = args.max_delayed
+    all_prompts = []
+    all_delayeds = []
+    for rootfile in rootfilenames:
+        file_prompts, file_delayeds = \
+            get_prompt_delayed_like_data_for_file(rootfile,
+                    prompts_to_fetch, delayeds_to_fetch)
+        all_prompts.extend(file_prompts)
+        all_delayeds.extend(file_delayeds)
+        # Update the number of events left to fetch
+        prompts_to_fetch -= len(file_prompts)
+        delayeds_to_fetch -= len(file_delayeds)
+        if prompts_to_fetch <= 0 and delayeds_to_fetch <= 0:
+            break
 
     # Algorithm: Shuffle the two lists' orders. Then pair up events. As a
     # trivial safety measure, ensure that no event is paired up with itself.
     # TODO: this algorithm mixes different ADs together. Fix that.
-    prompt_like_events = np.array(prompt_like_events)
-    delayed_like_events = np.array(delayed_like_events)
-    np.random.shuffle(prompt_like_events)
-    np.random.shuffle(delayed_like_events)
+    all_prompts = np.array(all_prompts)
+    all_delayeds = np.array(all_delayeds)
+    np.random.shuffle(all_prompts)
+    np.random.shuffle(all_delayeds)
     # Note: python's zip method discards any unpaired events. This is fine in
     # our case since there's no default and we don't want repeats.
-    pairs = zip(prompt_like_events, delayed_like_events)
+    pairs = zip(all_prompts, all_delayeds)
     num_pairs = len(pairs)
     dset_to_save = np.empty((num_pairs, ENTRYSIZE), dtype=float)
 
