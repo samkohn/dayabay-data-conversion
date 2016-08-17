@@ -12,6 +12,8 @@ from hitmapformat import *
 import matplotlib.pyplot as plt
 import h5py
 import sys
+import os
+import re
 import numpy as np
 import itertools
 import argparse
@@ -202,8 +204,8 @@ def prepareEventDataForH5(prompt, delayed, dt):
         This method makes use of the hitmapformat.py module.
     """
     event = {}
-    event['runno'] = runno  # from original file IO
-    event['fileno'] = fileno  # from original file IO
+    event['runno'] = prompt['runno']  # from original file IO
+    event['fileno'] = prompt['fileno']  # from original file IO
     event['site'] = prompt['site']
     event['det'] = prompt['detector']
     event['time_sec'] = prompt['triggerTimeSec']
@@ -234,10 +236,32 @@ def bulk_update(first, *args):
 
     return None
 
+def get_root_file_info(name):
+    """Extract the run number and file number from the ROOT file name.
+
+    The file name must match the following regular expression, otherwise
+    a ValueError is thrown:
+
+    /[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root/
+        ^        ^         ^         ^       ^
+    prefix    run number  other  file number  suffix
+
+    """
+    expression = r"[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root"
+    basename = os.path.basename(name)
+    match = re.match(expression, basename)
+    logging.debug("basename = %s", basename)
+    if match:
+        return map(int, match.group(1, 2))
+    else:
+        raise ValueError("Could not parse file name %s" % name)
+
 def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired=-1,
         max_delayeds_desired=-1):
     """Returns two lists, one of prompt-like and one of delayed-like singles
     for the specified file."""
+    runno, fileno = get_root_file_info(rootfilename)
+    fileinfodict = {'runno': runno, 'fileno': fileno}
     readout = rt.makeCalibReadoutTree(rootfilename)
     stats = rt.makeCalibStatsTree(rootfilename)
     rec = rt.makeRecTree(rootfilename)
@@ -267,7 +291,8 @@ def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired=-1,
                 readout_data.unlazyconstruct()
                 stats_data.unlazyconstruct()
                 rec_data.unlazyconstruct()
-                bulk_update(all_data, readout_data, stats_data, rec_data)
+                bulk_update(all_data, readout_data, stats_data, rec_data,
+                        fileinfodict)
                 prompt_like_events.append((i, all_data))
             if (len(delayed_like_events) < max_delayeds_desired and
                     is_delayed_like(readout_data, stats_data, rec_data)):
@@ -275,7 +300,8 @@ def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired=-1,
                 readout_data.unlazyconstruct()
                 stats_data.unlazyconstruct()
                 rec_data.unlazyconstruct()
-                bulk_update(all_data, readout_data, stats_data, rec_data)
+                bulk_update(all_data, readout_data, stats_data, rec_data,
+                        fileinfodict)
                 delayed_like_events.append((i, all_data))
     return (prompt_like_events, delayed_like_events)
 
