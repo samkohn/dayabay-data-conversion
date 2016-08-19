@@ -2,7 +2,6 @@
 convert from 8x24 to 1x192, to store metadata, etc.'''
 
 import numpy as np
-import roottools
 
 __all__ = [
         'METADATA_NAMES',
