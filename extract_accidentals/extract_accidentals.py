@@ -256,10 +256,20 @@ def get_root_file_info(name):
     else:
         raise ValueError("Could not parse file name %s" % name)
 
+def get_EHxADy_string(data):
+    """Construct an ID string of the form "EH1AD2" or similar based on the
+    given data from a TTree."""
+    detector = data['detector']
+    site = data['site']
+    detectors = {n: 'AD%s' % n for n in range(1, 5)}
+    sites = {1: 'EH1', 2: 'EH2', 4: 'EH3'}
+    return '%s%s' % (sites[site], detectors[detector])
+
 def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired,
         max_delayeds_desired):
-    """Returns two lists, one of prompt-like and one of delayed-like singles
-    for the specified file."""
+    """Returns two dicts of lists, one of prompt-like and one of delayed-like singles
+    for the specified file. The keys of the dict are the EHxADy strings
+    labeling where the events in that list happened."""
     runno, fileno = get_root_file_info(rootfilename)
     fileinfodict = {'runno': runno, 'fileno': fileno}
     readout = rt.makeCalibReadoutTree(rootfilename)
@@ -277,8 +287,8 @@ def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired,
     # Determine which events are prompt-like and which ones are delayed-like
     # (allow for overlap: in particular, all delayed-like events are also
     # prompt-like).
-    prompt_like_events = []
-    delayed_like_events = []
+    prompt_like_events = {}
+    delayed_like_events = {}
     for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
             stats.getentries(), rec.getentries())):
         if (len(prompt_like_events) >= max_prompts_desired and
@@ -293,7 +303,11 @@ def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired,
                 rec_data.unlazyconstruct()
                 bulk_update(all_data, readout_data, stats_data, rec_data,
                         fileinfodict)
-                prompt_like_events.append((i, all_data))
+                label = get_EHxADy_string(all_data)
+                if label in prompt_like_events.keys():
+                    prompt_like_events[label].append((i, all_data))
+                else:
+                    prompt_like_events[label] = [(i, all_data)]
             if (len(delayed_like_events) < max_delayeds_desired and
                     is_delayed_like(readout_data, stats_data, rec_data)):
                 all_data = {}
@@ -302,7 +316,11 @@ def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired,
                 rec_data.unlazyconstruct()
                 bulk_update(all_data, readout_data, stats_data, rec_data,
                         fileinfodict)
-                delayed_like_events.append((i, all_data))
+                label = get_EHxADy_string(all_data)
+                if label in delayed_like_events.keys():
+                    delayed_like_events[label].append((i, all_data))
+                else:
+                    delayed_like_events[label] = [(i, all_data)]
     return (prompt_like_events, delayed_like_events)
 
 def setup_parser():
@@ -340,38 +358,62 @@ if __name__ == "__main__":
 
     prompts_to_fetch = args.max_prompt
     delayeds_to_fetch = args.max_delayed
-    all_prompts = []
-    all_delayeds = []
+    all_prompts = {}
+    all_delayeds = {}
     for rootfile in rootfilenames:
         file_prompts, file_delayeds = \
             get_prompt_delayed_like_data_for_file(rootfile,
                     prompts_to_fetch, delayeds_to_fetch)
-        all_prompts.extend(file_prompts)
-        all_delayeds.extend(file_delayeds)
+        # Update/extend the all-prompts and all-delayeds dicts/lists
+        # to include the newly retrieved event data. Update key-by-key to keep
+        # different ADs separate.
+        new_prompts = 0
+        for key, value in file_prompts.iteritems():
+            new_prompts += len(file_prompts[key])
+            if key in all_prompts.keys():
+                all_prompts[key].extend(file_prompts[key])
+            else:
+                all_prompts[key] = file_prompts[key]
+        new_delayeds = 0
+        for key, value in file_delayeds.iteritems():
+            new_delayeds += len(file_delayeds[key])
+            if key in all_delayeds.keys():
+                all_delayeds[key].extend(file_delayeds[key])
+            else:
+                all_delayeds[key] = file_delayeds[key]
         # Update the number of events left to fetch
         if prompts_to_fetch >= 0:
-            continue_prompt = prompts_to_fetch > len(file_prompts)
-            prompts_to_fetch -= len(file_prompts)
+            continue_prompt = prompts_to_fetch > new_prompts
+            prompts_to_fetch -= new_prompts
         else:
             continue_prompt = True
         if delayeds_to_fetch >= 0:
-            continue_delayed = delayeds_to_fetch > len(file_delayeds)
-            delayeds_to_fetch -= len(file_delayeds)
+            continue_delayed = delayeds_to_fetch > new_delayeds
+            delayeds_to_fetch -= new_delayeds
         else:
             continue_delayed = True
         if (not continue_prompt) and (not continue_delayed):
             break
 
-    # Algorithm: Shuffle the two lists' orders. Then pair up events. As a
+    # Algorithm: Shuffle the two lists' orders. Then pair up events. TODO: As a
     # trivial safety measure, ensure that no event is paired up with itself.
-    # TODO: this algorithm mixes different ADs together. Fix that.
-    all_prompts = np.array(all_prompts)
-    all_delayeds = np.array(all_delayeds)
-    np.random.shuffle(all_prompts)
-    np.random.shuffle(all_delayeds)
+    all_prompts = {key: np.array(val) for key, val in all_prompts.iteritems()}
+    all_delayeds = {key: np.array(val) for key, val in
+            all_delayeds.iteritems()}
+    for eventlist in all_prompts.values():
+        np.random.shuffle(eventlist)
+    for eventlist in all_delayeds.values():
+        np.random.shuffle(eventlist)
     # Note: python's zip method discards any unpaired events. This is fine in
     # our case since there's no default and we don't want repeats.
-    pairs = zip(all_prompts, all_delayeds)
+    pairs = []
+    for key in all_delayeds.keys():
+        delayeds = all_delayeds[key]
+        if key in all_prompts.keys():
+            prompts = all_prompts[key]
+            pairs.extend(zip(prompts, delayeds))
+        else:
+            pass
     num_pairs = len(pairs)
     dset_to_save = np.empty((num_pairs, ENTRYSIZE), dtype=float)
 
