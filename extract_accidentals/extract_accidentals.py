@@ -70,11 +70,10 @@ def passes_flasher_veto(readout_data, stats_data):
     Q2 = stats_data['QuadrantQ2']
     Q3 = stats_data['QuadrantQ3']
     Q4 = stats_data['QuadrantQ4']
-    Qmax = stats_data['MaxQ']
-    Qtot = stats_data['NominalCharge']
+    charge_ratio = stats_data['MaxQ']  # This is actually Qmax/Qtot
     SCALE = 0.45
 
-    return (Q3 / (Q2 + Q4))**2 + (Qmax / Qtot / SCALE)**2 < 1
+    return (Q3 / (Q2 + Q4))**2 + (charge_ratio / SCALE)**2 < 1
 
 def has_prompt_energy(rec_data):
     """
