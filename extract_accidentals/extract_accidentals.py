@@ -19,183 +19,6 @@ import itertools
 import argparse
 import logging
 
-def passes_WS_muon_veto(readout_data, stats_data):
-    """
-       Veto and return false if within (-2, 600) us surrounding NHIT > 12 in
-       IWS or OWS.
-
-    """
-    us_to_ms = 1e-3
-    NEXT_DT = 2 * us_to_ms
-    LAST_DT = 600 * us_to_ms
-    dt_last_IWS = stats_data['dtLastIWS_ms']
-    dt_last_OWS = stats_data['dtLastOWS_ms']
-    dt_next_IWS = stats_data['dtNextIWS_ms']
-    dt_next_OWS = stats_data['dtNextOWS_ms']
-    return (dt_next_IWS > NEXT_DT and
-            dt_last_IWS > LAST_DT and
-            dt_next_OWS > NEXT_DT and
-            dt_last_OWS > LAST_DT)
-
-def passes_AD_muon_veto(readout_data, stats_data):
-    """
-        Veto and return false if (0, 1.4) ms after >3000 pe signal.
-
-    """
-    DT_THRESHOLD = 1.4
-    dt = stats_data['dtLast_ADMuon_ms']
-    return dt > DT_THRESHOLD
-
-def passes_AD_shower_muon_veto(readout_data, stats_data):
-    """
-        Veto and return false if (0, 0.4) s after >3e5 pe signal.
-
-    """
-    DT_THRESHOLD = 400
-    dt = stats_data['dtLast_ADShower_ms']
-    return dt > DT_THRESHOLD
-
-def passes_flasher_veto(readout_data, stats_data):
-    """
-        Veto and return false if fails the flasher veto.
-
-        Defined as a flasher if:
-
-        (Q3/(Q2+Q4))**2 + (Qmax/(Qtot * 0.45))**2 > 1
-
-        (In the paper the criterion is that log10 of that quantity is
-        greater than 0, but this is the same and slightly cheaper.)
-
-    """
-    Q2 = stats_data['QuadrantQ2']
-    Q3 = stats_data['QuadrantQ3']
-    Q4 = stats_data['QuadrantQ4']
-    charge_ratio = stats_data['MaxQ']  # This is actually Qmax/Qtot
-    SCALE = 0.45
-
-    return (Q3 / (Q2 + Q4))**2 + (charge_ratio / SCALE)**2 < 1
-
-def has_prompt_energy(rec_data):
-    """
-        Return True if this event has prompt-like energy (0.7, 12) MeV.
-
-    """
-    energy = rec_data['energy']
-    MIN_E = 0.7
-    MAX_E = 12
-    return energy > MIN_E and energy < MAX_E
-
-def has_delayed_energy(rec_data):
-    """
-        Return True if this event has delayed_like energy (6, 12) MeV.
-
-    """
-    energy = rec_data['energy']
-    MIN_E = 6
-    MAX_E = 12
-    return energy > MIN_E and energy < MAX_E
-
-def is_IBD_trigger(readout_data):
-    """
-        Return True if the event is a trigger in an AD with the ESUM and NHIT
-        triggers activated.
-
-    """
-    AD_codes = (1, 2, 3, 4)
-    ESUM_code = 0x10001000
-    NHIT_code = 0x10000100
-    trigger_code = ESUM_code | NHIT_code
-    detector = readout_data['detector']
-    trigger = readout_data['triggerType']
-    return (detector in AD_codes and
-            trigger == trigger_code)
-
-def is_prompt_like(readout_data, stats_data, rec_data):
-    """
-        Return True if the event data suggests it is prompt-like.
-
-        The criteria for prompt-like are given in the Daya Bay 2016 Long Paper
-        as:
-
-           - Passes water shield muon veto
-
-           - Passes AD muon veto
-
-           - Passes AD shower muon veto
-
-           - Passes flasher veto
-
-           - Erec is between 0.7 MeV and 12 MeV
-
-    """
-    return (passes_WS_muon_veto(readout_data, stats_data) and
-        passes_AD_muon_veto(readout_data, stats_data) and
-        passes_AD_shower_muon_veto(readout_data, stats_data) and
-        passes_flasher_veto(readout_data, stats_data) and
-        has_prompt_energy(rec_data))
-
-def is_delayed_like(readout_data, stats_data, rec_data):
-    """
-        Return True if the event data suggests it is delayed-like.
-
-        The criteria for delayed-like are given in the Daya Bay 2016 Long Paper
-        as:
-
-           - Passes water shield muon veto
-
-           - Passes AD muon veto
-
-           - Passes AD shower muon veto
-
-           - Passes flasher veto
-
-           - Erec is between 6 and 12 MeV
-
-    """
-    return (passes_WS_muon_veto(readout_data, stats_data) and
-        passes_AD_muon_veto(readout_data, stats_data) and
-        passes_AD_shower_muon_veto(readout_data, stats_data) and
-        passes_flasher_veto(readout_data, stats_data) and
-        has_delayed_energy(rec_data))
-
-def is_singles_like(readout_data, stats_data):
-    """
-        Return True if the event data suggests it is singles-like based only on
-        other nearby IBD-like triggers.
-
-        This is in essence a multiplicity cut:
-
-          - last AD trigger and next AD trigger are both more than 400 us away
-
-    """
-    thisDetector = readout_data['detector']
-    thisSite = readout_data['site']
-    EH1 = 1
-    EH2 = 2
-    EH3 = 3
-    if thisSite == EH1 or thisSite == EH2:
-        ADs = [1, 2]
-    elif thisSite == EH3:
-        ADs = [1, 2, 3, 4]
-    else:
-        return
-    if thisDetector in ADs:
-        last_name = 'dtLastAD%d_ms' % thisDetector
-        next_name = 'dtNextAD%d_ms' % thisDetector
-    else:
-        return
-    exclusion_time = 400e-3
-    # Some of the ADs are always set to -1 because they don't exist
-    # This may mistakenly not veto the 0th event in each file which also has
-    # ADs set to -1 since there is no previous trigger. I don't think that
-    # matters.
-    dt_last = stats_data[last_name]
-    dt_next = stats_data[next_name]
-
-    # Ensure that the time is larger than the exclusion time
-    return (dt_last > exclusion_time and
-            dt_next > exclusion_time)
-
 def prepareEventDataForH5(prompt, delayed, dt):
     """
         Return a numpy array with the relevant data for saving to HDF5.
@@ -241,12 +64,13 @@ def get_root_file_info(name):
     The file name must match the following regular expression, otherwise
     a ValueError is thrown:
 
-    /[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root/
+    /[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root\.(prompt|delayed)\.root/
         ^        ^         ^         ^       ^
     prefix    run number  other  file number  suffix
 
     """
-    expression = r"[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root"
+    expression = (r"[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root" +
+        r"\.(prompt|delayed)\.root")
     basename = os.path.basename(name)
     match = re.match(expression, basename)
     logging.debug("basename = %s", basename)
@@ -264,11 +88,10 @@ def get_EHxADy_string(data):
     sites = {1: 'EH1', 2: 'EH2', 4: 'EH3'}
     return '%s%s' % (sites[site], detectors[detector])
 
-def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired,
-        max_delayeds_desired):
-    """Returns two dicts of lists, one of prompt-like and one of delayed-like singles
-    for the specified file. The keys of the dict are the EHxADy strings
-    labeling where the events in that list happened."""
+def get_data_for_file(rootfilename, max_events):
+    """Returns a dict of lists for the specified file. The keys of the
+    dict are the EHxADy strings labeling where the events in that list
+    happened."""
     runno, fileno = get_root_file_info(rootfilename)
     fileinfodict = {'runno': runno, 'fileno': fileno}
     readout = rt.makeCalibReadoutTree(rootfilename)
@@ -279,48 +102,28 @@ def get_prompt_delayed_like_data_for_file(rootfilename, max_prompts_desired,
     assert num_triggers == stats.numEntries(), "len(readout) != len(stats)"
     assert num_triggers == rec.numEntries(), "len(readout) != len(rec)"
     logging.info("num triggers = %d", num_triggers)
-    if max_prompts_desired < 0:
-        max_prompts_desired = num_triggers
-    if max_delayeds_desired < 0:
-        max_delayeds_desired = num_triggers
-    # Determine which events are prompt-like and which ones are delayed-like
-    # (allow for overlap: in particular, all delayed-like events are also
-    # prompt-like).
-    prompt_like_events = {}
-    delayed_like_events = {}
+    if max_events < 0:
+        max_events = num_triggers
+    events = {'EH1AD1':[], 'EH1AD2':[]}
     for i, (readout_data, stats_data, rec_data) in enumerate(itertools.izip(readout.getentries(),
             stats.getentries(), rec.getentries())):
-        if (len(prompt_like_events) >= max_prompts_desired and
-                len(delayed_like_events) >= max_delayeds_desired):
+        if len(events['EH1AD1']) + len(events['EH1AD2']) >= max_events:
             break
-        if is_IBD_trigger(readout_data) and is_singles_like(readout_data, stats_data):
-            if (len(prompt_like_events) < max_prompts_desired and
-                    is_prompt_like(readout_data, stats_data, rec_data)):
-                all_data = {}
-                readout_data.unlazyconstruct()
-                stats_data.unlazyconstruct()
-                rec_data.unlazyconstruct()
-                bulk_update(all_data, readout_data, stats_data, rec_data,
-                        fileinfodict)
-                label = get_EHxADy_string(all_data)
-                if label in prompt_like_events.keys():
-                    prompt_like_events[label].append((i, all_data))
-                else:
-                    prompt_like_events[label] = [(i, all_data)]
-            if (len(delayed_like_events) < max_delayeds_desired and
-                    is_delayed_like(readout_data, stats_data, rec_data)):
-                all_data = {}
-                readout_data.unlazyconstruct()
-                stats_data.unlazyconstruct()
-                rec_data.unlazyconstruct()
-                bulk_update(all_data, readout_data, stats_data, rec_data,
-                        fileinfodict)
-                label = get_EHxADy_string(all_data)
-                if label in delayed_like_events.keys():
-                    delayed_like_events[label].append((i, all_data))
-                else:
-                    delayed_like_events[label] = [(i, all_data)]
-    return (prompt_like_events, delayed_like_events)
+        all_data = {}
+        readout_data.unlazyconstruct()
+        stats_data.unlazyconstruct()
+        rec_data.unlazyconstruct()
+        bulk_update(all_data, readout_data, stats_data, rec_data,
+                fileinfodict)
+        try:
+            label = get_EHxADy_string(all_data)
+        except KeyError:
+            continue
+        if label in events.keys():
+            events[label].append((i, all_data))
+        else:
+            events[label] = [(i, all_data)]
+    return events
 
 def setup_parser():
     parser = argparse.ArgumentParser()
@@ -360,9 +163,10 @@ if __name__ == "__main__":
     all_prompts = {}
     all_delayeds = {}
     for rootfile in rootfilenames:
-        file_prompts, file_delayeds = \
-            get_prompt_delayed_like_data_for_file(rootfile,
-                    prompts_to_fetch, delayeds_to_fetch)
+        filename = rootfile + '.prompt.root'
+        file_prompts = get_data_for_file(filename, prompts_to_fetch)
+        filename = rootfile + '.delayed.root'
+        file_delayeds = get_data_for_file(filename, delayeds_to_fetch)
         # Update/extend the all-prompts and all-delayeds dicts/lists
         # to include the newly retrieved event data. Update key-by-key to keep
         # different ADs separate.
