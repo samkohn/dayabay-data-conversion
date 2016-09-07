@@ -8,7 +8,8 @@ version 6.06.04. It currently only works on Edison (and not on Cori).
 
 """
 import roottools as rt
-from hitmapformat import *
+from hitmapformat import METADATA_NAMES, NPIXELS, NMETADATA
+import hitmapformat as formatter
 import matplotlib.pyplot as plt
 import h5py
 import sys
@@ -19,7 +20,7 @@ import itertools
 import argparse
 import logging
 
-def prepareEventDataForH5(prompt, delayed, dt):
+def prepareEventDataForH5(prompt, delayed, dt, label):
     """
         Return a numpy array with the relevant data for saving to HDF5.
 
@@ -39,9 +40,10 @@ def prepareEventDataForH5(prompt, delayed, dt):
     event['dt_last_wp_muon'] = min(prompt['dtLastIWS_ms'],
             prompt['dtLastOWS_ms'])
     event['dt_IBD'] = dt
+    event['label_id'] = label
     charge_prompt, time_prompt = rt.getChargesTime(prompt)
     charge_delayed, time_delayed = rt.getChargesTime(delayed)
-    flattened = getFlattenedData(event,
+    flattened = formatter.getFlattenedData(event,
             charge_prompt, time_prompt, charge_delayed, time_delayed)
     return flattened
 
@@ -134,6 +136,9 @@ def setup_parser():
             help='max number of prompt events to read (-1 = all)')
     parser.add_argument('--max-delayed', type=int, default=-1,
             help='max number of delayed events to read (-1 = all)')
+    parser.add_argument('-l', '--label', type=str, default='unknown',
+            help='label for all events processed',
+            choices=formatter.labels.keys())
     parser.add_argument('-d', '--debug', action='store_true')
     return parser
 
@@ -232,7 +237,8 @@ if __name__ == "__main__":
     dts = np.random.uniform(0, DT_THRESHOLD, (len(pairs),))
 
     for i, (dt, ((j, prompt), (k, delayed))) in enumerate(zip(dts, pairs)):
-        dset_to_save[i, :] = prepareEventDataForH5(prompt, delayed, dt)
+        dset_to_save[i, :] = prepareEventDataForH5(prompt, delayed, dt,
+                args.label)
     outdset = h5file.create_dataset("accidentals_bg_data",
             data=dset_to_save, compression="gzip", chunks=True)
 
