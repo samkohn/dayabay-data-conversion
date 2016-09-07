@@ -8,7 +8,7 @@ version 6.06.04. It currently only works on Edison (and not on Cori).
 
 """
 import roottools as rt
-from hitmapformat import METADATA_NAMES, NPIXELS, NMETADATA
+from hitmapformat import METADATA_NAMES, NPIXELS, NMETADATA, ENTRYSIZE
 import hitmapformat as formatter
 import matplotlib.pyplot as plt
 import h5py

@@ -87,4 +87,4 @@ def label2id(label):
 
 def id2label(idnum):
     """Return the label corresponding to this id."""
-    return labels[str(idnum)][0]
+    return labels[str(int(idnum))][0]
