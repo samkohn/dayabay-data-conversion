@@ -78,7 +78,9 @@ labels = {
         '0': ('ibd', 0),
         'ibd': ('ibd', 0),
         '1': ('accidental', 1),
-        'accidental': ('accidental', 1)
+        'accidental': ('accidental', 1),
+        '2': ('flasher', 2),
+        'flasher': ('flasher, 2')
         }
 
 def label2id(label):
