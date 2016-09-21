@@ -28,12 +28,15 @@ def prepareEventDataForH5(prompt, delayed, dt, label):
     """
     event = {}
     event['runno'] = prompt['runno']  # from original file IO
-    event['fileno'] = prompt['fileno']  # from original file IO
+    event['fileno_prompt'] = prompt['fileno']  # from original file IO
+    event['fileno_delayed'] = delayed['fileno']
     event['site'] = prompt['site']
     event['det'] = prompt['detector']
     event['time_sec'] = prompt['triggerTimeSec']
     event['time_nanosec'] = prompt['triggerTimeNanoSec']
     event['trigno_prompt'] = prompt['triggerNumber']
+    event['energy_prompt'] = prompt['energy']
+    event['energy_delayed'] = delayed['energy']
     event['trigno_delayed'] = delayed['triggerNumber']
     event['dt_last_ad_muon'] = prompt['dtLast_ADMuon_ms']
     event['dt_last_ad_shower_muon'] = prompt['dtLast_ADShower_ms']
@@ -96,9 +99,13 @@ def get_data_for_file(rootfilename, max_events):
     happened."""
     runno, fileno = get_root_file_info(rootfilename)
     fileinfodict = {'runno': runno, 'fileno': fileno}
-    readout = rt.makeCalibReadoutTree(rootfilename)
-    stats = rt.makeCalibStatsTree(rootfilename)
-    rec = rt.makeRecTree(rootfilename)
+    try:
+        readout = rt.makeCalibReadoutTree(rootfilename)
+        stats = rt.makeCalibStatsTree(rootfilename)
+        rec = rt.makeRecTree(rootfilename)
+    except:
+        logging.info("error in file %s, skipping...", rootfilename)
+        return {'EH1AD1':[], 'EH1AD2':[]}
 
     num_triggers = readout.numEntries()
     assert num_triggers == stats.numEntries(), "len(readout) != len(stats)"
@@ -270,7 +277,7 @@ triggers and to the last muon.""" % (ENTRYSIZE, NPIXELS-1, NPIXELS,
     2*NPIXELS-1, 2*NPIXELS, 3*NPIXELS-1, 3*NPIXELS, 4*NPIXELS-1, 4*NPIXELS,
     ENTRYSIZE-1)
     # Set metadata attributes so people know what's in the last bit of each row
-    for i, name in enumerate(METADATA_NAMES):
+    for i, name in enumerate(METADATA_NAMES[formatter.VERSION]):
         outdset.attrs[str(i)] = name
         outdset.attrs[name] = i
 
