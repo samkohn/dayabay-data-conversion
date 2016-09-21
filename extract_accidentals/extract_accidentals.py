@@ -149,27 +149,7 @@ def setup_parser():
     parser.add_argument('-d', '--debug', action='store_true')
     return parser
 
-
-if __name__ == "__main__":
-    parser = setup_parser()
-    args = parser.parse_args()
-    if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
-    outfilename = 'accidentals.h5' if args.output is None else args.output
-    h5file = h5py.File(outfilename, "w")
-
-    if args.infiles is None:
-        runno = '0021221'
-        fileno = '0016'
-        rootfilenames = [("/global/project/projectdirs/dayabay/data/exp/" +
-            "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
-            "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)]
-    else:
-        with open(args.infiles, 'r') as f:
-            rootfilenames = map(str.strip, f.readlines())
-
+def fetch_accidentals(args):
     prompts_to_fetch = args.max_prompt
     delayeds_to_fetch = args.max_delayed
     all_prompts = {}
@@ -246,6 +226,30 @@ if __name__ == "__main__":
     for i, (dt, ((j, prompt), (k, delayed))) in enumerate(zip(dts, pairs)):
         dset_to_save[i, :] = prepareEventDataForH5(prompt, delayed, dt,
                 args.label)
+    return dset_to_save
+
+if __name__ == "__main__":
+    parser = setup_parser()
+    args = parser.parse_args()
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+    outfilename = 'accidentals.h5' if args.output is None else args.output
+    h5file = h5py.File(outfilename, "w")
+
+    if args.infiles is None:
+        runno = '0021221'
+        fileno = '0016'
+        rootfilenames = [("/global/project/projectdirs/dayabay/data/exp/" +
+            "dayabay/2011/p14a/Neutrino/1224/recon.Neutrino.%s." +
+            "Physics.EH1-Merged.P14A-P._%s.root") % (runno, fileno)]
+    else:
+        with open(args.infiles, 'r') as f:
+            rootfilenames = map(str.strip, f.readlines())
+
+    dset_to_save = fetch_accidentals(args)
+
     outdset = h5file.create_dataset("accidentals_bg_data",
             data=dset_to_save, compression="gzip", chunks=True)
 
