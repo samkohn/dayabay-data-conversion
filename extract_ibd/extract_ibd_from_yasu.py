@@ -54,7 +54,7 @@ def main():
         'time_nanosec', 'trigno_prompt', 'trigno_delayed',
         'nHitsAD_prompt', 'nHitsAD_delayed']
     floatbranches = ['dt_last_ad_muon', 'dt_last_ad_shower_muon',
-        'dt_last_wp_muon']
+        'dt_last_wp_muon', 'dt', 'e_prompt', 'e_delayed']
     ivectorbranches = ['hitCountAD_prompt', 'ring_prompt', 'column_prompt',
         'hitCountAD_delayed', 'ring_delayed', 'column_delayed']
     fvectorbranches = ['timeAD_prompt', 'chargeAD_prompt', 'timeAD_delayed',
@@ -66,7 +66,25 @@ def main():
     for entrynum in range(startentry, endentry):
         roottree.loadentry(entrynum)
         event = roottree.current
-        data[global_index-start] = getFlattenedData(event)
+        event['nHitsAD'] = event['nHitsAD_prompt']
+        event['chargeAD'] = event['chargeAD_prompt']
+        event['timeAD'] = event['timeAD_prompt']
+        event['ring'] = event['ring_prompt']
+        event['column'] = event['column_prompt']
+        charge_prompt, time_prompt = roottools.getChargesTime(event)
+        event['nHitsAD'] = event['nHitsAD_delayed']
+        event['chargeAD'] = event['chargeAD_delayed']
+        event['timeAD'] = event['timeAD_delayed']
+        event['ring'] = event['ring_delayed']
+        event['column'] = event['column_delayed']
+        charge_delayed, time_delayed = roottools.getChargesTime(event)
+        event['dt_IBD'] = event['dt']
+        event['energy_prompt'] = event['e_prompt']
+        event['energy_delayed'] = event['e_delayed']
+        event['fileno_prompt'] = event['fileno']
+        event['fileno_delayed'] = event['fileno']
+        data[global_index-start] = getFlattenedData(event, charge_prompt,
+                time_prompt, charge_delayed, time_delayed)
         global_index += 1
     remainingEntries = stop - global_index
     fileindex = startfileindex + 1
@@ -95,6 +113,10 @@ def main():
             event['column'] = event['column_delayed']
             charge_delayed, time_delayed = roottools.getChargesTime(event)
             event['dt_IBD'] = event['dt']
+            event['energy_prompt'] = event['e_prompt']
+            event['energy_delayed'] = event['e_delayed']
+            event['fileno_prompt'] = event['fileno']
+            event['fileno_delayed'] = event['fileno']
             data[global_index-start] = getFlattenedData(event, charge_prompt,
                     time_prompt, charge_delayed, time_delayed)
             global_index += 1
@@ -129,7 +151,7 @@ triggers and to the last muon.""" % (ENTRYSIZE, NPIXELS-1, NPIXELS,
     ENTRYSIZE-1)
 
     # Set metadata attributes so people know what's in the last bit of each row
-    for i, name in enumerate(METADATA_NAMES):
+    for i, name in enumerate(METADATA_NAMES[1]):
         outdset.attrs[str(i)] = name
         outdset.attrs[name] = i
 
