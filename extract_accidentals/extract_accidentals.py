@@ -19,6 +19,7 @@ import numpy as np
 import itertools
 import argparse
 import logging
+from itertools import chain
 
 def prepareEventDataForH5(prompt, delayed, dt, label):
     """
@@ -29,15 +30,12 @@ def prepareEventDataForH5(prompt, delayed, dt, label):
     event = {}
     event['runno'] = prompt['runno']  # from original file IO
     event['fileno_prompt'] = prompt['fileno']  # from original file IO
-    event['fileno_delayed'] = delayed['fileno']
     event['site'] = prompt['site']
     event['det'] = prompt['detector']
     event['time_sec'] = prompt['triggerTimeSec']
     event['time_nanosec'] = prompt['triggerTimeNanoSec']
     event['trigno_prompt'] = prompt['triggerNumber']
     event['energy_prompt'] = prompt['energy']
-    event['energy_delayed'] = delayed['energy']
-    event['trigno_delayed'] = delayed['triggerNumber']
     event['dt_last_ad_muon'] = prompt['dtLast_ADMuon_ms']
     event['dt_last_ad_shower_muon'] = prompt['dtLast_ADShower_ms']
     event['dt_last_wp_muon'] = min(prompt['dtLastIWS_ms'],
@@ -45,7 +43,16 @@ def prepareEventDataForH5(prompt, delayed, dt, label):
     event['dt_IBD'] = dt
     event['label_id'] = label
     charge_prompt, time_prompt = rt.getChargesTime(prompt)
-    charge_delayed, time_delayed = rt.getChargesTime(delayed)
+    if delayed is not None:
+        event['fileno_delayed'] = delayed['fileno']
+        event['energy_delayed'] = delayed['energy']
+        event['trigno_delayed'] = delayed['triggerNumber']
+        charge_delayed, time_delayed = rt.getChargesTime(delayed)
+    else:
+        event['fileno_delayed'] = 0
+        event['energy_delayed'] = 0
+        event['trigno_delayed'] = 0
+        charge_delayed, time_delayed = None, None
     flattened = formatter.getFlattenedData(event,
             charge_prompt, time_prompt, charge_delayed, time_delayed)
     return flattened
@@ -69,13 +76,13 @@ def get_root_file_info(name):
     The file name must match the following regular expression, otherwise
     a ValueError is thrown:
 
-    /[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root\.(prompt|delayed)\.root/
+    /[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root\.(prompt|delayed|flasher)\.root/
         ^        ^         ^         ^       ^
     prefix    run number  other  file number  suffix
 
     """
     expression = (r"[A-Za-z.]+(\d+)[A-Za-z0-9.-]+_(\d+)\.root" +
-        r"\.(prompt|delayed)\.root")
+        r"\.(prompt|delayed|flasher)\.root")
     basename = os.path.basename(name)
     match = re.match(expression, basename)
     logging.debug("basename = %s", basename)
@@ -143,9 +150,9 @@ def setup_parser():
             help='max number of prompt events to read (-1 = all)')
     parser.add_argument('--max-delayed', type=int, default=-1,
             help='max number of delayed events to read (-1 = all)')
-    parser.add_argument('-l', '--label', type=str, default='unknown',
-            help='label for all events processed',
-            choices=formatter.labels.keys())
+    parser.add_argument('-l', '--label', type=str, required=True,
+            choices=['flasher', 'accidental'],
+            help='label for all events processed')
     parser.add_argument('-d', '--debug', action='store_true')
     return parser
 
@@ -228,6 +235,37 @@ def fetch_accidentals(args):
                 args.label)
     return dset_to_save
 
+def fetch_flashers(args):
+    '''fetch flashers from the specified files and save them as 'singles' (no
+    delayed trigger).'''
+    flashers_to_fetch = args.max_prompt
+    all_flashers = {}
+    for rootfile in rootfilenames:
+        filename = rootfile + '.flasher.root'
+        file_flashers = get_data_for_file(filename, flashers_to_fetch)
+
+        new_flashers = 0
+        for key, value in file_flashers.iteritems():
+            new_flashers += len(file_flashers[key])
+            if key in all_flashers.keys():
+                all_flashers[key].extend(file_flashers[key])
+            else:
+                all_flashers[key] = file_flashers[key]
+
+        if flashers_to_fetch >= 0:
+            continue_flasher = flashers_to_fetch > new_flashers
+            flashers_to_fetch -= new_flashers
+        else:
+            continue_flasher = True
+        if not continue_flasher:
+            break
+    flashers_list = list(chain(*all_flashers.values()))
+    num_pairs = len(flashers_list)
+    dset_to_save = np.empty((num_pairs, ENTRYSIZE), dtype=float)
+    for i, (j, flasher) in enumerate(flashers_list):
+        dset_to_save[i, :] = prepareEventDataForH5(flasher, None, 0, args.label)
+    return dset_to_save
+
 if __name__ == "__main__":
     parser = setup_parser()
     args = parser.parse_args()
@@ -248,7 +286,10 @@ if __name__ == "__main__":
         with open(args.infiles, 'r') as f:
             rootfilenames = map(str.strip, f.readlines())
 
-    dset_to_save = fetch_accidentals(args)
+    if args.label == 'flasher':
+        dset_to_save = fetch_flashers(args)
+    elif args.label == 'accidental':
+        dset_to_save = fetch_accidentals(args)
 
     outdset = h5file.create_dataset("accidentals_bg_data",
             data=dset_to_save, compression="gzip", chunks=True)
